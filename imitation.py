@@ -23,19 +23,26 @@ class RequestPoll:
         self.t_waiting = self.generate_waiting(self.nu)  # время ухода заявок из очереди без обслуживания
         self.t_service = self.generate_service(self.mu)  # время обслуживания
 
-        self.recalcTService = []  # временные моменты событий
-        self.time = 0
-        # self.timeLaps = np.arange(0.0, self.t_coming[-1], 0.1).tolist()
+        self.recalcTService = self.set_initial_time_events()  # временные моменты событий
+        self.time = self.recalcTService[0]
 
-        # self.process_queue()
+        self.process_queue()
 
     def check_queue(self):
         """ Проверяет, обработаны ли все возможные заявки """
-        # if len(self.takeServe) < self.num_req:
-        if self.time <= self.t_coming[-1]:
+        if (self.takeServe[-1] == {}) & self.gone[-1] == 0:
             return True
         else:
             return False
+
+    def set_initial_time_events(self):
+        leaves = []
+        for request in range(self.num_req):
+            leaves.append(self.t_coming[request] + self.t_waiting[request])
+
+        times = self.t_coming + leaves
+        times.sort()
+        return times
 
     def generate_arrive(self, lamda):
         """ Генерирует кумулятивный список из распределения Пуассона для времени прибытия заявок """
@@ -84,7 +91,10 @@ class RequestPoll:
             for channel in channels:
                 self.busyChannel[channel] = 0
 
-            # ToDo: брать в работу новую заявку
+            # ToDo: перераспределение работы (может быть несколько каналов)
+            if len(self.queue) > 0:
+                request = self.queue.pop()
+                self.take_to_work(channels, request)
 
             if self.time in self.recalcTService:  # если такая заявка не одна
                 self.request_service_end()
@@ -94,10 +104,27 @@ class RequestPoll:
         if self.time in self.t_coming.index:
             req_num = self.t_coming.index(self.time)
 
-
+            if 0 in self.busyChannel:  # есть свободные
+                channel = self.busyChannel.index(0)
+                # ToDo: перераспределение работы (может быть несколько каналов)
+                self.take_to_work([channel], req_num)
+            else:
+                self.queue.append(req_num)
 
             if self.time in self.t_coming.index:
                 self.requests_come()
+
+    def take_to_work(self, channels, request):
+        """ Событие взятия в работу заявки """
+        self.takeServe[request]['TimeEnd'] = self.time
+        self.takeServe[request]['channels'] = channels
+
+        for channel in channels:
+            self.busyChannel[channel] = 1
+
+        time_end = self.time + (self.t_service[request] / len(channels))
+        self.recalcTService.append(time_end)
+        self.recalcTService.sort()
 
     def requests_gone(self):
         """ Событие ухода заявки из очереди без обработки """
@@ -115,7 +142,8 @@ class RequestPoll:
     def check_next_event(self):
         """ Проверка на следующее событие и установка следующего времени остановки """
         # ToDo: реализовать по-человечески
-        self.recalcTService = self.t_coming
+        index = self.recalcTService.index(self.time)
+        self.time = self.recalcTService[index + 1]
 
     def process_queue(self):
         """ Процесс обработки очереди """
@@ -132,3 +160,5 @@ request_poll = RequestPoll(10, 3, 4, 5, 50)
 print('t_coming', request_poll.t_coming)
 print('t_service', request_poll.t_service)
 print('t_waiting', request_poll.t_waiting)
+print('takeServe', request_poll.takeServe)
+
