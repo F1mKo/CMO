@@ -36,11 +36,7 @@ class RequestPoll:
             return False
 
     def set_initial_time_events(self):
-        leaves = []
-        for request in range(self.num_req):
-            leaves.append(self.t_coming[request] + self.t_waiting[request])
-
-        times = self.t_coming + leaves
+        times = self.t_coming + self.t_waiting
         times.sort()
         return times
 
@@ -55,7 +51,7 @@ class RequestPoll:
         return result
 
     def generate_waiting(self, lamda):
-        """ Генерирует кумулятивный список из распределения Пуассона для времени ухода заявок из очереди """
+        """ Генерирует некумулятивный список из распределения Пуассона для времени ухода заявок из очереди """
         distribution = np.random.poisson(lam=lamda, size=self.num_req)
         result = []
 
@@ -80,10 +76,10 @@ class RequestPoll:
             Устанавливает время окончания
             и освобождает занятые каналы,
             при наличии берет в работу заявки из очереди """
-        if self.time in self.recalcTService:
-            req_num = self.recalcTService.index(self.time)
+        if self.time in self.t_waiting:
+            req_num = self.t_waiting.index(self.time)
 
-            self.recalcTService[req_num] = -1
+            # self.recalcTService[req_num] = -1
             self.takeServe[req_num]['TimeEnd'] = self.time
 
             cur_serve = self.takeServe[req_num]
