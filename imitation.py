@@ -18,8 +18,6 @@ class RequestPoll:
         self.queueHistory = []  # сохранение тенденции наличия заявок в очереди
 
         self.busyChannel = [-1 for _ in range(self.n)]  # заняты ли в текущий момент каналы
-        self.workChannelsInfo = [[] for _ in range(self.n)]  # информация о работе каналов
-        #           f.e.: [[{request1: -, timeStart: -, timeEnd: -], {}], [], []]]
 
         self.t_coming = self.generate_arrive(self.lamda)  # время прихода заявок
         self.t_waiting = self.generate_waiting(self.nu)  # время ухода заявок из очереди без обслуживания
@@ -31,16 +29,15 @@ class RequestPoll:
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
         self.time = self.recalcTService[0]
 
-        self.process_queue()
-
     def check_queue(self):
         """ Проверяет, обработаны ли все возможные заявки """
-        if self.takeServe[-1] != {}:
-            if self.takeServe[-1]['TimeEnd'] != -1:
+        if self.time > self.t_coming_start[-1]:
+            busy = 0
+            for ch in self.busyChannel:
+                if ch != -1:
+                    busy += 1
+            if busy == 0:
                 return False
-
-        if (self.takeServe[-1] == {}) and (self.gone[-1] != 0):
-            return False
 
         return True
 
@@ -95,16 +92,16 @@ class RequestPoll:
             channels = cur_serve['channels']
             for channel_id in channels:
                 self.busyChannel[channel_id] = -1
-                self.workChannelsInfo[channel_id][-1]['TimeEnd'] = self.time
 
             if len(self.queue) > 0:
-                request = self.queue.pop()
-                channels = self.reassign_channels(False)
+                request = self.queue.pop(0)
+                channels = self.reassign_channels()
                 self.take_to_work(channels, request)
-            else:
-                self.reassign_channels(True)
+            # ToDo: помощь другим каналам когда в очереди никого нет
+            # else:
+                # self.reassign_channels(False)
 
-            if self.time in self.t_waiting:  # если такая заявка не одна
+            if self.time in self.t_ending:  # если такая заявка не одна
                 self.request_service_end()
 
     def requests_come(self):
@@ -113,8 +110,8 @@ class RequestPoll:
             req_num = self.t_coming.index(self.time)
             self.t_coming[req_num] = -1
 
-            if -1 in self.busyChannel:  # есть свободные
-                channels = self.reassign_channels(False)
+            channels = self.reassign_channels()
+            if len(channels) > 0:  # нашлись свободные
                 self.take_to_work(channels, req_num)
             else:
                 self.queue.append(req_num)
@@ -130,15 +127,10 @@ class RequestPoll:
 
         for channel_id in channels:
             self.busyChannel[channel_id] = request
-            self.workChannelsInfo[channel_id].append({'request': request, 'TimeStart': self.time, 'TimeEnd': -1})
+        self.set_end_work_time(request, channels)
 
-        time_end = self.time + (self.t_service[request] / len(channels))
-        self.t_ending[request] = time_end
-        self.recalcTService.append(time_end)
-        self.recalcTService = list(dict.fromkeys(self.recalcTService))
-        self.recalcTService.sort()
-
-    def reassign_channels(self, is_take_all):
+    def reassign_channels(self):
+        """ Перераспределяет нагрузку на каналы """
         free = []
         busy = {}
         for c in range(self.n):
@@ -150,28 +142,43 @@ class RequestPoll:
                 else:
                     busy[self.busyChannel[c]] = [c]
 
-        req_number = len(busy)
-        if not is_take_all:
-            req_number += 1
+        req_number = len(busy) + 1
+        new_engage = self.n // req_number
 
-        # ToDo: доделать перераспределение каналов
+        if len(free) < new_engage:
+            max_busy_index = -1
+            max_busy = 0
+            for i in busy:
+                if len(busy[i]) > max_busy:
+                    max_busy = len(busy[i])
+                    max_busy_index = i
+
+            new_worklist = []
+            if max_busy > new_engage:
+                for _ in range(new_engage):
+                    new_worklist.append(busy[max_busy_index].pop())
+                self.set_end_work_time(max_busy_index, busy[max_busy_index])
+
+            free += new_worklist
         return free
+
+    def set_end_work_time(self, request, channels):
+        """ Пересчитывает время окончания обработки заявки """
+        time_end = self.time + (self.t_service[request] / len(channels))
+        self.t_ending[request] = time_end
+        self.recalcTService.append(time_end)
+        self.recalcTService = list(dict.fromkeys(self.recalcTService))
+        self.recalcTService.sort()
 
     def requests_gone(self):
         """ Событие ухода заявки из очереди без обработки """
         index = 0
-        req_to_del = []
         for request in self.queue:
             if self.t_waiting[request] == self.time:
-                req_to_del.append(index)
                 self.gone[request] = 1
-            index += 1
-
-        for del_index in req_to_del:
-            if len(self.queue) > del_index:
-                del self.queue[del_index]
+                del self.queue[index]
             else:
-                raise IndexError('очередь: ', self.queue, 'индекс на удаление: ', del_index)
+                index += 1
 
     def check_next_event(self):
         """ Проверка на следующее событие и установка следующего времени остановки """
@@ -190,26 +197,30 @@ class RequestPoll:
 
             self.check_next_event()
 
+    def print_plot_workflow(self):
+        fig, ax = plt.subplots()
+        ax.grid()
 
-request_poll = RequestPoll(6, 15, 8, 2, 50)
+        for req in range(len(self.takeServe)):
+            if self.gone[req] == 1:
+                plt.barh(req, (self.t_waiting[req] - self.t_coming_start[req]),
+                         left=self.t_coming_start[req], color='r')
+            else:
+                plt.barh(req, (self.takeServe[req]['TimeStart'] - self.t_coming_start[req]),
+                         left=self.t_coming_start[req], color='yellow')
+                plt.barh(req, (self.takeServe[req]['TimeEnd'] - self.takeServe[req]['TimeStart']),
+                         left=self.takeServe[req]['TimeStart'], color='b')
+
+        plt.rcParams["figure.figsize"] = (self.time + 50, self.n)
+        plt.show()
+
+
+request_poll = RequestPoll(5, 25, 8, 5, 50)
+request_poll.process_queue()
 
 print('t_coming', request_poll.t_coming_start)
 print('t_service', request_poll.t_service)
 print('t_waiting', request_poll.t_waiting)
 print('takeServe', request_poll.takeServe)
 
-fig, ax = plt.subplots()
-ax.grid()
-
-for req in range(len(request_poll.takeServe)):
-    if request_poll.gone[req] == 1:
-        plt.barh(req, (request_poll.t_waiting[req] - request_poll.t_coming_start[req]),
-                 left=request_poll.t_coming_start[req], color='r')
-    else:
-        plt.barh(req, (request_poll.takeServe[req]['TimeStart'] - request_poll.t_coming_start[req]),
-                 left=request_poll.t_coming_start[req], color='yellow')
-        plt.barh(req, (request_poll.takeServe[req]['TimeEnd'] - request_poll.takeServe[req]['TimeStart']),
-                 left=request_poll.takeServe[req]['TimeStart'], color='b')
-
-plt.rcParams["figure.figsize"] = (request_poll.time + 50, request_poll.n)
-plt.show()
+request_poll.print_plot_workflow()
