@@ -1,4 +1,6 @@
 import numpy as np
+import copy
+import matplotlib.pyplot as plt
 
 
 class RequestPoll:
@@ -9,7 +11,7 @@ class RequestPoll:
         self.n = n  # число каналов обработки
         self.num_req = number  # общее число поступивших заявок
         self.takeServe = [{} for _ in range(self.num_req)]  # список взятых в работу заявок
-        # f.e.: {timeStart: - , timeEnd: -, channels:{}}
+        #           f.e.: {timeStart: - , timeEnd: -, channels:{}}
 
         self.gone = [0 for _ in range(self.num_req)]  # ушли ли заявки, не дождавшись обработки
         self.queue = []  # очередь заявок
@@ -17,12 +19,14 @@ class RequestPoll:
 
         self.busyChannel = [-1 for _ in range(self.n)]  # заняты ли в текущий момент каналы
         self.workChannelsInfo = [[] for _ in range(self.n)]  # информация о работе каналов
-        # f.e.: [[{request: -, timeStart: -, timeEnd: -}, {}], [], []]
+        #           f.e.: [[{request1: -, timeStart: -, timeEnd: -], {}], [], []]]
 
         self.t_coming = self.generate_arrive(self.lamda)  # время прихода заявок
         self.t_waiting = self.generate_waiting(self.nu)  # время ухода заявок из очереди без обслуживания
         self.t_service = self.generate_service(self.mu)  # время обслуживания
         self.t_ending = [-1 for _ in range(self.num_req)]  # время окончания обработки заявок
+
+        self.t_coming_start = copy.deepcopy(self.t_coming)
 
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
         self.time = self.recalcTService[0]
@@ -89,8 +93,9 @@ class RequestPoll:
 
             cur_serve = self.takeServe[req_num]
             channels = cur_serve['channels']
-            for channel in channels:
-                self.busyChannel[channel] = -1
+            for channel_id in channels:
+                self.busyChannel[channel_id] = -1
+                self.workChannelsInfo[channel_id][-1]['TimeEnd'] = self.time
 
             if len(self.queue) > 0:
                 request = self.queue.pop()
@@ -123,8 +128,9 @@ class RequestPoll:
         self.takeServe[request]['TimeEnd'] = -1
         self.takeServe[request]['channels'] = channels
 
-        for channel in channels:
-            self.busyChannel[channel] = request
+        for channel_id in channels:
+            self.busyChannel[channel_id] = request
+            self.workChannelsInfo[channel_id].append({'request': request, 'TimeStart': self.time, 'TimeEnd': -1})
 
         time_end = self.time + (self.t_service[request] / len(channels))
         self.t_ending[request] = time_end
@@ -156,13 +162,16 @@ class RequestPoll:
         index = 0
         req_to_del = []
         for request in self.queue:
-            index += 1
             if self.t_waiting[request] == self.time:
                 req_to_del.append(index)
                 self.gone[request] = 1
+            index += 1
 
-        for index in req_to_del:
-            del self.queue[index]
+        for del_index in req_to_del:
+            if len(self.queue) > del_index:
+                del self.queue[del_index]
+            else:
+                raise IndexError('очередь: ', self.queue, 'индекс на удаление: ', del_index)
 
     def check_next_event(self):
         """ Проверка на следующее событие и установка следующего времени остановки """
@@ -182,10 +191,25 @@ class RequestPoll:
             self.check_next_event()
 
 
-request_poll = RequestPoll(10, 2, 2, 5, 50)
+request_poll = RequestPoll(6, 15, 8, 2, 50)
 
-print('t_coming', request_poll.t_coming)
+print('t_coming', request_poll.t_coming_start)
 print('t_service', request_poll.t_service)
 print('t_waiting', request_poll.t_waiting)
 print('takeServe', request_poll.takeServe)
 
+fig, ax = plt.subplots()
+ax.grid()
+
+for req in range(len(request_poll.takeServe)):
+    if request_poll.gone[req] == 1:
+        plt.barh(req, (request_poll.t_waiting[req] - request_poll.t_coming_start[req]),
+                 left=request_poll.t_coming_start[req], color='r')
+    else:
+        plt.barh(req, (request_poll.takeServe[req]['TimeStart'] - request_poll.t_coming_start[req]),
+                 left=request_poll.t_coming_start[req], color='yellow')
+        plt.barh(req, (request_poll.takeServe[req]['TimeEnd'] - request_poll.takeServe[req]['TimeStart']),
+                 left=request_poll.takeServe[req]['TimeStart'], color='b')
+
+plt.rcParams["figure.figsize"] = (request_poll.time + 50, request_poll.n)
+plt.show()
