@@ -15,13 +15,13 @@ class RequestPoll:
 
         self.gone = [0 for _ in range(self.num_req)]  # ушли ли заявки, не дождавшись обработки
         self.queue = []  # очередь заявок
-        self.queueHistory = []  # сохранение тенденции наличия заявок в очереди
+        self.requestsHistory = {}  # сохранение тенденции наличия заявок в очереди
 
         self.busyChannel = [-1 for _ in range(self.n)]  # заняты ли в текущий момент каналы
 
-        self.t_coming = self.generate_arrive(self.lamda)  # время прихода заявок
-        self.t_waiting = self.generate_waiting(self.nu)  # время ухода заявок из очереди без обслуживания
-        self.t_service = self.generate_service(self.mu)  # время обслуживания
+        self.t_coming = self.generate_arrive(1 / self.lamda)  # время прихода заявок
+        self.t_waiting = self.generate_waiting(1 / self.nu)  # время ухода заявок из очереди без обслуживания
+        self.t_service = self.generate_service(1 / self.mu)  # время обслуживания
         self.t_ending = [-1 for _ in range(self.num_req)]  # время окончания обработки заявок
 
         self.t_coming_start = copy.deepcopy(self.t_coming)
@@ -48,7 +48,7 @@ class RequestPoll:
 
     def generate_arrive(self, lamda):
         """ Генерирует кумулятивный список из распределения Пуассона для времени прибытия заявок """
-        distribution = np.random.poisson(lam=lamda, size=self.num_req)
+        distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = [distribution[0]]
 
         for index in range(1, distribution.size):
@@ -58,7 +58,7 @@ class RequestPoll:
 
     def generate_waiting(self, lamda):
         """ Генерирует некумулятивный список из распределения Пуассона для времени ухода заявок из очереди """
-        distribution = np.random.poisson(lam=lamda, size=self.num_req)
+        distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
 
         for index in range(0, distribution.size):
@@ -68,7 +68,7 @@ class RequestPoll:
 
     def generate_service(self, lamda):
         """ Генерирует некумулятивный список из распределения Пуассона для времени обслуживания """
-        distribution = np.random.poisson(lam=lamda, size=self.num_req)
+        distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
         for index in range(0, distribution.size):
             if distribution[index] == 0:
@@ -78,9 +78,8 @@ class RequestPoll:
         return result
 
     def request_service_end(self):
-        """ Событие окончания обработки заявки
-            Устанавливает время окончания
-            и освобождает занятые каналы,
+        """ Событие окончания обработки заявки.
+            Устанавливает время окончания и освобождает занятые каналы,
             при наличии берет в работу заявки из очереди """
         if self.time in self.t_ending:
             req_num = self.t_ending.index(self.time)
@@ -97,9 +96,8 @@ class RequestPoll:
                 request = self.queue.pop(0)
                 channels = self.reassign_channels()
                 self.take_to_work(channels, request)
-            # ToDo: помощь другим каналам когда в очереди никого нет
-            # else:
-                # self.reassign_channels(False)
+            else:
+                self.help_channels()
 
             if self.time in self.t_ending:  # если такая заявка не одна
                 self.request_service_end()
@@ -131,17 +129,7 @@ class RequestPoll:
 
     def reassign_channels(self):
         """ Перераспределяет нагрузку на каналы """
-        free = []
-        busy = {}
-        for c in range(self.n):
-            if self.busyChannel[c] == -1:
-                free.append(c)
-            else:
-                if self.busyChannel[c] in busy:
-                    busy[self.busyChannel[c]].append(c)
-                else:
-                    busy[self.busyChannel[c]] = [c]
-
+        free, busy = self.get_free_busy()
         req_number = len(busy) + 1
         new_engage = self.n // req_number
 
@@ -164,7 +152,13 @@ class RequestPoll:
 
     def set_end_work_time(self, request, channels):
         """ Пересчитывает время окончания обработки заявки """
-        time_end = self.time + (self.t_service[request] / len(channels))
+        if self.takeServe[request]['TimeStart'] == self.time:
+            time_end = self.time + (self.t_service[request] / len(channels))
+        else:
+            time_end = self.time + ((self.t_ending[request] - self.time)
+                                    * len(self.takeServe[request]['channels']) / len(channels))
+            self.takeServe[request]['channels'] = channels
+
         self.t_ending[request] = time_end
         self.recalcTService.append(time_end)
         self.recalcTService = list(dict.fromkeys(self.recalcTService))
@@ -180,11 +174,57 @@ class RequestPoll:
             else:
                 index += 1
 
+    def help_channels(self):
+        """ Взаимопомощь другим каналам, когда нет заявок в очереди """
+        free, busy = self.get_free_busy()
+        req_number = len(busy)
+
+        if (req_number > 0) and (len(free) > 0):
+            new_engage = self.n // req_number
+
+            req_index = 0
+            for i in busy:
+                number_to_add = new_engage - len(busy[i])
+                if req_index == (len(busy) - 1):
+                    number_to_add = len(free)
+
+                for _ in range(number_to_add):
+                    if len(free) > 0:
+                        channel = free.pop()
+                        busy[i].append(channel)
+                        self.busyChannel[channel] = i
+                    else:
+                        raise IndexError('Свободные каналы: ', free, 'пытаемся добавить к каналам ', busy[i])
+
+                self.set_end_work_time(i, busy[i])
+                req_index += 1
+
+    def get_free_busy(self):
+        free = []
+        busy = {}
+        for c in range(self.n):
+            if self.busyChannel[c] == -1:
+                free.append(c)
+            else:
+                if self.busyChannel[c] in busy:
+                    busy[self.busyChannel[c]].append(c)
+                else:
+                    busy[self.busyChannel[c]] = [c]
+        return free, busy
+
     def check_next_event(self):
         """ Проверка на следующее событие и установка следующего времени остановки """
         index = self.recalcTService.index(self.time)
         if index < (len(self.recalcTService) - 1):
             self.time = self.recalcTService[index + 1]
+
+    def set_history(self):
+        """ Сохранение количества заявок в системе """
+        req_in_work = []
+        for ch in self.busyChannel:
+            if (ch != -1) and (ch not in req_in_work):
+                req_in_work.append(ch)
+        self.requestsHistory[round(self.time, 2)] = len(self.queue) + len(req_in_work)
 
     def process_queue(self):
         """ Процесс обработки очереди """
@@ -193,8 +233,7 @@ class RequestPoll:
             self.requests_come()
             self.requests_gone()
 
-            self.queueHistory.append(len(self.queue))
-
+            self.set_history()
             self.check_next_event()
 
     def print_plot_workflow(self):
@@ -214,13 +253,37 @@ class RequestPoll:
         plt.rcParams["figure.figsize"] = (self.time + 50, self.n)
         plt.show()
 
+    def print_main_params(self):
+        print('t_coming', self.t_coming_start)
+        print('t_service', self.t_service)
+        print('t_waiting', self.t_waiting)
+        print('takeServe', self.takeServe)
+        print('history', self.requestsHistory)
 
-request_poll = RequestPoll(5, 25, 8, 5, 50)
-request_poll.process_queue()
 
-print('t_coming', request_poll.t_coming_start)
-print('t_service', request_poll.t_service)
-print('t_waiting', request_poll.t_waiting)
-print('takeServe', request_poll.takeServe)
+frequency_char = []
+max_time = 0
 
-request_poll.print_plot_workflow()
+for _ in range(5):
+    request_poll = RequestPoll(10, 2, 3, 5, 50)
+    request_poll.process_queue()
+    # request_poll.print_plot_workflow()
+    frequency_char.append(request_poll.requestsHistory)
+
+    current_max_time = max(request_poll.requestsHistory, key=lambda x: x)
+    if current_max_time > max_time:
+        max_time = current_max_time
+
+intervals = np.arange(0.00, max_time, 0.01).tolist()
+step = 0.01
+
+for time in intervals:
+    time = round(time, 2)
+    for run_index in range(len(frequency_char)):
+        if time not in frequency_char[run_index]:
+            if time == 0:
+                frequency_char[run_index][time] = 0
+            else:
+                frequency_char[run_index][time] = frequency_char[run_index][round(time - step, 2)]
+
+print(frequency_char)
