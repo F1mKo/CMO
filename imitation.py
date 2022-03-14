@@ -3,6 +3,38 @@ import copy
 import matplotlib.pyplot as plt
 
 
+def get_frequency_char(c_states, c_char, t_moments):
+    t_index = 0
+    for t in t_moments:
+        t_time = round(t, 2)
+        for index_state in range(len(c_char)):
+            state = c_char[index_state]
+            # print("state[t_time]=", state[t_time], "index_state=", index_state, "t_time=", t_time)
+            c_states[state[t_time]][t_index] += 1
+        t_index += 1
+
+    count_runs = len(c_char)
+    t_index = 0
+    for t in t_moments:
+        for state in c_states:
+            c_states[state][t_index] /= count_runs
+        t_index += 1
+
+    return c_states
+
+
+def draw_frequency_characteristics(chars, t_moments):
+    fig, ax = plt.subplots()
+    fig.set_facecolor('white')
+    for sys_state in chars:
+        plt.plot(t_moments, chars[sys_state], linewidth=1, label='state ' + str(sys_state))
+
+    plt.rcParams["figure.figsize"] = (t_moments[-1] + 2, 1)
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+
 class RequestPoll:
     def __init__(self, lamda, mu, nu, n, number):
         self.lamda = lamda  # интенсивность появления новых заявок
@@ -38,7 +70,6 @@ class RequestPoll:
                     busy += 1
             if busy == 0:
                 return False
-
         return True
 
     def set_initial_time_events(self):
@@ -261,29 +292,42 @@ class RequestPoll:
         print('history', self.requestsHistory)
 
 
-frequency_char = []
-max_time = 0
+count_char = []
+minmax_time = np.inf
+run_number = 1000
 
-for _ in range(5):
-    request_poll = RequestPoll(10, 2, 3, 5, 50)
+for _ in range(run_number):
+    request_poll = RequestPoll(10, 1, 5, 5, 50)
     request_poll.process_queue()
     # request_poll.print_plot_workflow()
-    frequency_char.append(request_poll.requestsHistory)
+    count_char.append(request_poll.requestsHistory)
 
-    current_max_time = max(request_poll.requestsHistory, key=lambda x: x)
-    if current_max_time > max_time:
-        max_time = current_max_time
+    # current_max_time = max(request_poll.requestsHistory, key=lambda x: x)
+    current_max_time = round(request_poll.time, 2)
+    if current_max_time < minmax_time:
+        minmax_time = current_max_time
 
-intervals = np.arange(0.00, max_time, 0.01).tolist()
+intervals = list(np.arange(0.00, minmax_time, 0.01))
+count_time_moments = len(intervals)
 step = 0.01
 
+avail_states = {}
 for time in intervals:
     time = round(time, 2)
-    for run_index in range(len(frequency_char)):
-        if time not in frequency_char[run_index]:
+    for run_index in range(len(count_char)):
+        if time not in count_char[run_index]:
             if time == 0:
-                frequency_char[run_index][time] = 0
+                count_char[run_index][time] = 0
             else:
-                frequency_char[run_index][time] = frequency_char[run_index][round(time - step, 2)]
+                count_char[run_index][time] = count_char[run_index][round(time - step, 2)]
 
-print(frequency_char)
+        if count_char[run_index][time] not in avail_states:
+            avail_states[count_char[run_index][time]] = 0
+
+max_state = max(avail_states, key=lambda x: x)
+states = {}
+for st in range(max_state + 1):
+    states[st] = [0 for _ in range(count_time_moments)]
+
+frequency_characteristic = get_frequency_char(states, count_char, intervals)
+draw_frequency_characteristics(frequency_characteristic, intervals)

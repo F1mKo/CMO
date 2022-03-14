@@ -88,7 +88,3 @@ print(ultimate_p)
 print('Сравнение предельных вероятностей:')
 for sys_state in range(num_req + 1):
     print('state ' + str(sys_state), Y[-1][sys_state] - ultimate_p[sys_state])
-
-
-
-
