@@ -2,11 +2,12 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 
+
 class Imitation:
-    def __init__(self, lamda = 10, mu = 1, nu = 5, n = 5, number = 500):
+    def __init__(self, lamda=10, mu=1, nu=5, n=5, number=500):
         self.lamda = lamda  # интенсивность появления новых заявок
-        self.mu = mu
-        self.nu = nu
+        self.mu = mu  # интенсивность обработки заявки
+        self.nu = nu  # интенсивность терпеливости заявок в очереди
         self.n = n  # число каналов обработки
         self.num_req = number  # общее число поступивших заявок
         self.takeServe = [{} for _ in range(self.num_req)]  # список взятых в работу заявок
@@ -281,18 +282,18 @@ class Imitation:
     @staticmethod
     def draw_frequency_characteristics(chars, t_moments):
         fig, ax = plt.subplots()
-        #fig.set_facecolor('white')
+        # fig.set_facecolor('white')
         for sys_state in chars:
             plt.plot(t_moments, chars[sys_state], linewidth=1, label='state ' + str(sys_state))
 
-        #plt.rcParams["figure.figsize"] = (t_moments[-1] + 2, 1)
+        # plt.rcParams["figure.figsize"] = (t_moments[-1] + 2, 1)
         plt.title("График частотных характеристик СМО")
         plt.grid()
         plt.legend()
         plt.show()
 
     @classmethod
-    def run(cls, samples = 1000, lamda = 10, mu = 1, nu = 5, n = 5, number = 500):
+    def run(cls, samples=1000, lamda=10, mu=1, nu=5, n=5, number=500):
         count_char = []
         minmax_time = np.inf
         run_number = samples
@@ -325,12 +326,12 @@ class Imitation:
                 if count_char[run_index][time] not in avail_states:
                     avail_states[count_char[run_index][time]] = 0
 
-        max_state = max(avail_states, key=lambda x: x)
+        cls.max_state = max(avail_states, key=lambda x: x)
         states = {}
-        for st in range(max_state + 1):
+        for st in range(cls.max_state + 1):
             states[st] = [0 for _ in range(count_time_moments)]
 
         frequency_characteristic = cls.get_frequency_char(states, count_char, intervals)
         cls.draw_frequency_characteristics(frequency_characteristic, intervals)
 
-#Imitation.run(1000, 10, 1, 5, 5, 50)
+# Imitation.run(1000, 10, 1, 5, 5, 50)
