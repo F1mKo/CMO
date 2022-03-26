@@ -11,7 +11,7 @@ med = 22;
 small = 16
 params = {'axes.titlesize': large,
           'legend.fontsize': small,
-          'figure.figsize': (16, 10),
+          'figure.figsize': (8, 9),
           'axes.labelsize': med,
           'axes.titlesize': med,
           'xtick.labelsize': med,
@@ -29,5 +29,5 @@ n = 5  # число каналов обработки
 num_req = 50  # общее число поступивших заявок
 
 Imitation.run(samples, lamda, mu, nu, n, num_req)
-prob = StatMod(lamda, mu, nu, n, num_req, Imitation.max_state + 1)
+prob = StatMod(lamda, mu, nu, n, num_req, Imitation.max_state + 1, Imitation.tmax)
 prob.run()

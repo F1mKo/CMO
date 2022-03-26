@@ -312,6 +312,7 @@ class Imitation:
         intervals = list(np.arange(0.00, minmax_time, 0.01))
         count_time_moments = len(intervals)
         step = 0.01
+        cls.tmax = count_time_moments * step
 
         avail_states = {}
         for time in intervals:

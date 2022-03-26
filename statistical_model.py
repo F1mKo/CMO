@@ -4,13 +4,14 @@ from scipy.integrate import ode
 
 
 class StatMod:
-    def __init__(self, lamda=10, mu=1, nu=5, n=5, num_req=50, imitation_states=50):
+    def __init__(self, lamda=10, mu=1, nu=5, n=5, num_req=50, imitation_states=50, tmax=500):
         self.lamda = lamda  # интенсивность появления новых заявок
         self.mu = mu  # интенсивность обработки заявки
         self.nu = nu  # интенсивность терпеливости заявок в очереди
         self.n = n  # число каналов обработки
         self.num_req = num_req  # общее число поступивших заявок (максимальное возможное число состояний)
         self.max_states = imitation_states
+        self.tmax = tmax # максимально допустимый момент времени
 
     def f(self, t, p):
         # функция правых частей системы ОДУ
@@ -69,7 +70,7 @@ class StatMod:
         # self.ps = [[] for _ in range(self.n + 3)] + [[] for _ in range(self.n + 3, self.num_req, 5)]
         # self.st_names = [name for name in range(self.n + 3)] + [name for name in range(self.n + 3, self.num_req, 5)]
 
-        self.tmax = 10  # максимально допустимый момент времени
+        #self.tmax = 10
         self.y0, self.t0 = [1] + [0 for _ in range(1, self.num_req + 1)], 0  # начальные условия
 
         ODE = ode(self.f)
