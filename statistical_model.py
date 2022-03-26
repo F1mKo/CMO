@@ -1,10 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import ode
 
 
 class StatMod:
-    def __init__(self, lamda=10, mu=1, nu=5, n=5, num_req=50, imitation_states=50, tmax=500):
+    def __init__(self, lamda=10, mu=1, nu=5, n=5, num_req=50, imitation_states=50, tmax=5):
         self.lamda = lamda  # интенсивность появления новых заявок
         self.mu = mu  # интенсивность обработки заявки
         self.nu = nu  # интенсивность терпеливости заявок в очереди
@@ -18,32 +17,23 @@ class StatMod:
         self.st_names = [name for name in range(self.max_states)]
         self.ps = [[] for _ in range(self.max_states)]
         self.Y = np.array(0)
+        self.tau = 0.05  # шаг интегрирования
 
-    def f(self, t, p):
+    def f(self, p):
         """ Функция правых частей системы ОДУ """
-        lamda = self.lamda
-        mu = self.mu  # интенсивность обработки заявки
-        nu = self.nu  # интенсивность терпеливости заявок в очереди
-        n = self.n  # число каналов обработки
-        num_req = self.num_req  # общее число поступивших заявок (максимальное возможное число состояний)
+        n = self.n
+        num_req = self.num_req
 
-        result = [-lamda * p[0] + n * mu * p[1]]
-        result += [(lamda * p[i - 1] - (lamda + n * mu) * p[i] + n * mu * p[i + 1]) for i in range(1, n)]
-        result += [lamda * p[i - 1] - (lamda + n * mu + (i - n) * nu) * p[i] + (n * mu + (i - n + 1) * nu) * p[i + 1]
-                   for i in range(n, num_req)]
-        result += [lamda * p[num_req - 1] - (lamda + n * mu + (num_req - n) * nu) * p[num_req]]
+        result = [-self.lamda * p[0] + n * self.mu * p[1]]
+        result += [(self.lamda * p[i - 1] - (self.lamda + n * self.mu) * p[i] + n * self.mu * p[i + 1])
+                   for i in range(1, n)]
+
+        result += [self.lamda * p[i - 1] - (self.lamda + n * self.mu + (i - n) * self.nu) * p[i] +
+                   (n * self.mu + (i - n + 1) * self.nu) * p[i + 1] for i in range(n, num_req)]
+
+        result += [self.lamda * p[num_req - 1] - (self.lamda + n * self.mu + (num_req - n) * self.nu) * p[num_req]]
 
         return result
-
-    def foot(self, t, y):
-        # обработчик шага
-        self.ts.append(t)
-        self.ys.append(list(y.copy()))
-
-        for state in range(self.max_states):
-            self.ps[state].append(y[state])
-        if t > self.tmax:
-            return -1
 
     def get_report(self):
         """ Построение графика вероятностей для состояний системы """
@@ -61,15 +51,39 @@ class StatMod:
         plt.legend()
         plt.show()
 
-        self.calc_lim_prob()
+    def increment(self, y):
+        """ Вычисление коэффициентов для 4-х этапного метода Рунге-Кутты """
+        k1 = self.mult(self.tau, self.f(y))
+        k2 = self.mult(self.tau, self.f(self.add(y, self.mult(0.5 * self.tau, k1))))
+        k3 = self.mult(self.tau, self.f(self.add(y, self.mult(0.5 * self.tau, k2))))
+        k4 = self.mult(self.tau, self.f(self.add(y, self.mult(self.tau, k3))))
 
-    def solve(self):
+        result = self.add(self.mult(1 / 6, k1), self.mult(1 / 3, k2))
+        result = self.add(result, self.mult(1 / 3, k3))
+        result = self.add(result, self.mult(1 / 6, k4))
+
+        return result
+
+    def runge_kutta(self):
         """ Численное интегирование СДУ и последующая запись результатов"""
-        ODE = ode(self.f)
-        ODE.set_integrator('dopri5', max_step=0.05)
-        ODE.set_solout(self.foot)
-        ODE.set_initial_value(self.y0, self.t0)  # задание начальных значений
-        ODE.integrate(self.tmax)  # решение ОДУ
+        self.ts.append(self.t0)  # внесение начальных значений
+        self.ys.append(self.y0)
+
+        cur_t = self.t0
+        cur_y = self.y0
+
+        for state in range(self.max_states):
+            self.ps[state].append(cur_y[state])
+
+        while cur_t < self.tmax:  # цикл по временному промежутку интегрирования
+            self.tau = min(self.tau, self.tmax - cur_t)  # определение минимального шага self.tau
+            cur_y = self.add(cur_y, self.increment(cur_y))  # расчёт значения в точке t0,y0 для задачи Коши
+            cur_t = cur_t + self.tau  # приращение времени
+            self.ts.append(cur_t)
+            self.ys.append(cur_y)
+
+            for state in range(self.max_states):
+                self.ps[state].append(cur_y[state])
 
     def calc_lim_prob(self):
         # расчет предельных вероятностей состояний системы:
@@ -100,11 +114,25 @@ class StatMod:
 
         print(ultimate_p)
         print('Сравнение предельных вероятностей:')
-        for sys_state in range(self.num_req + 1):
+        for sys_state in range(self.max_states + 1):
             print('state ' + str(sys_state), self.Y[-1][sys_state] - ultimate_p[sys_state])
+
+    @staticmethod
+    def mult(element, array):
+        for i in range(len(array)):
+            array[i] *= element
+
+        return array
+
+    @staticmethod
+    def add(array, array1):
+        for i in range(len(array)):
+            array[i] += array1[i]
+
+        return array
 
     def run(self):
         """ Основная функция запуска стасистической модели"""
-        self.solve()
+        self.runge_kutta()
         self.get_report()
         self.calc_lim_prob()

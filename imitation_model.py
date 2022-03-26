@@ -269,13 +269,12 @@ class Imitation:
             t_time = round(t, 2)
             for index_state in range(len(c_char)):
                 state = c_char[index_state]
-                # print("state[t_time]=", state[t_time], "index_state=", index_state, "t_time=", t_time)
                 c_states[state[t_time]][t_index] += 1
             t_index += 1
 
         count_runs = len(c_char)
         t_index = 0
-        for t in t_moments:
+        for _ in t_moments:
             for state in c_states:
                 c_states[state][t_index] /= count_runs
             t_index += 1
@@ -285,11 +284,9 @@ class Imitation:
     @staticmethod
     def draw_frequency_characteristics(chars, t_moments):
         fig, ax = plt.subplots()
-        # fig.set_facecolor('white')
         for sys_state in chars:
             plt.plot(t_moments, chars[sys_state], linewidth=1, label='state ' + str(sys_state))
 
-        # plt.rcParams["figure.figsize"] = (t_moments[-1] + 2, 1)
         plt.title("График частотных характеристик СМО")
         plt.grid()
         plt.legend()
@@ -304,11 +301,9 @@ class Imitation:
         for _ in range(run_number):
             request_poll = cls(lamda, mu, nu, n, number)
             request_poll.process_queue()
-            # request_poll.print_plot_workflow()
             count_char.append(request_poll.requestsHistory)
-
-            # current_max_time = max(request_poll.requestsHistory, key=lambda x: x)
             current_max_time = round(request_poll.time, 2)
+
             if current_max_time < minmax_time:
                 minmax_time = current_max_time
 
@@ -337,5 +332,3 @@ class Imitation:
 
         frequency_characteristic = cls.get_frequency_char(states, count_char, intervals)
         cls.draw_frequency_characteristics(frequency_characteristic, intervals)
-
-# Imitation.run(1000, 10, 1, 5, 5, 50)

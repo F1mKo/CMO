@@ -1,27 +1,25 @@
-import copy
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.integrate import ode
 from imitation_model import Imitation
 from statistical_model import StatMod
 
-large = 34;
-med = 22;
+
+large = 34
+med = 22
 small = 16
-params = {'axes.titlesize': large,
-          'legend.fontsize': small,
+params = {'legend.fontsize': small,
           'figure.figsize': (8, 9),
           'axes.labelsize': med,
           'axes.titlesize': med,
           'xtick.labelsize': med,
           'ytick.labelsize': med,
           'figure.titlesize': large}
+
 plt.rcParams.update(params)
 plt.style.use('seaborn-whitegrid')
 sns.set_style("white")
 
-samples = 2000
+samples = 10
 lamda = 10  # интенсивность появления новых заявок
 mu = 1  # интенсивность обработки заявки
 nu = 5  # интенсивность терпеливости заявок в очереди
