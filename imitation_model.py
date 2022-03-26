@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 
 
 class Imitation:
+    tmax = None
+    max_state = None
+
     def __init__(self, lamda=10, mu=1, nu=5, n=5, number=500):
         self.lamda = lamda  # интенсивность появления новых заявок
         self.mu = mu  # интенсивность обработки заявки

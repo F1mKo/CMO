@@ -11,20 +11,29 @@ class StatMod:
         self.n = n  # число каналов обработки
         self.num_req = num_req  # общее число поступивших заявок (максимальное возможное число состояний)
         self.max_states = imitation_states
-        self.tmax = tmax # максимально допустимый момент времени
+        self.tmax = tmax  # максимально допустимый момент времени
+        self.ts = []
+        self.ys = []
+        self.y0, self.t0 = [1] + [0 for _ in range(1, self.num_req + 1)], 0  # начальные условия
+        self.st_names = [name for name in range(self.max_states)]
+        self.ps = [[] for _ in range(self.max_states)]
+        self.Y = np.array(0)
 
     def f(self, t, p):
-        # функция правых частей системы ОДУ
+        """ Функция правых частей системы ОДУ """
         lamda = self.lamda
         mu = self.mu  # интенсивность обработки заявки
         nu = self.nu  # интенсивность терпеливости заявок в очереди
         n = self.n  # число каналов обработки
         num_req = self.num_req  # общее число поступивших заявок (максимальное возможное число состояний)
-        return [-lamda * p[0] + n * mu * p[1]] \
-               + [(lamda * p[i - 1] - (lamda + n * mu) * p[i] + n * mu * p[i + 1]) for i in range(1, n)] \
-               + [lamda * p[i - 1] - (lamda + n * mu + (i - n) * nu) * p[i] + (n * mu + (i - n + 1) * nu) * p[i + 1]
-                  for i in range(n, num_req)] \
-               + [lamda * p[num_req - 1] - (lamda + n * mu + (num_req - n) * nu) * p[num_req]]
+
+        result = [-lamda * p[0] + n * mu * p[1]]
+        result += [(lamda * p[i - 1] - (lamda + n * mu) * p[i] + n * mu * p[i + 1]) for i in range(1, n)]
+        result += [lamda * p[i - 1] - (lamda + n * mu + (i - n) * nu) * p[i] + (n * mu + (i - n + 1) * nu) * p[i + 1]
+                   for i in range(n, num_req)]
+        result += [lamda * p[num_req - 1] - (lamda + n * mu + (num_req - n) * nu) * p[num_req]]
+
+        return result
 
     def foot(self, t, y):
         # обработчик шага
@@ -33,19 +42,12 @@ class StatMod:
 
         for state in range(self.max_states):
             self.ps[state].append(y[state])
-        # for state in range(self.n + 3):
-        #    self.ps[state].append(y[state])
-        # index = self.n + 3
-        # for state in range(self.n + 3, self.num_req, 5):
-        #    self.ps[index].append(y[state])
-        #    index += 1
         if t > self.tmax:
             return -1
 
     def get_report(self):
-        # построение графика вероятностей для состояний системы
+        """ Построение графика вероятностей для состояний системы """
         fig1, ax1 = plt.subplots()
-        # fig1.set_facecolor('white')
         self.Y = np.array(self.ys)
 
         for sys_state in range(len(self.ps)):
@@ -62,17 +64,7 @@ class StatMod:
         self.calc_lim_prob()
 
     def solve(self):
-        # Численное интегирование СДУ и последующая запись результатов
-        self.ts = []
-        self.ys = []
-        self.ps = [[] for _ in range(self.max_states)]
-        self.st_names = [name for name in range(self.max_states)]
-        # self.ps = [[] for _ in range(self.n + 3)] + [[] for _ in range(self.n + 3, self.num_req, 5)]
-        # self.st_names = [name for name in range(self.n + 3)] + [name for name in range(self.n + 3, self.num_req, 5)]
-
-        #self.tmax = 10
-        self.y0, self.t0 = [1] + [0 for _ in range(1, self.num_req + 1)], 0  # начальные условия
-
+        """ Численное интегирование СДУ и последующая запись результатов"""
         ODE = ode(self.f)
         ODE.set_integrator('dopri5', max_step=0.05)
         ODE.set_solout(self.foot)
@@ -112,10 +104,7 @@ class StatMod:
             print('state ' + str(sys_state), self.Y[-1][sys_state] - ultimate_p[sys_state])
 
     def run(self):
-        # Основная функция запуска стасистической модели
+        """ Основная функция запуска стасистической модели"""
         self.solve()
         self.get_report()
         self.calc_lim_prob()
-
-# prob = StatMod()
-# prob.run()
