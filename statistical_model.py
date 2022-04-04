@@ -117,8 +117,30 @@ class StatMod:
         for sys_state in range(self.max_states + 1):
             print('state ' + str(sys_state), self.Y[-1][sys_state] - ultimate_p[sys_state])
 
+    def calc_metrics(self):
+        # расчет предельных вероятностей состояний системы:
+        p0 = self.Y[-1][0]
+        rho = self.lamda / (self.n * self.mu)
+        nq_prob = self.arr_sum(self.Y[-1], 0, self.n + 1, 0)
+        n_s = self.arr_sum(self.Y[-1], 1, self.n + 1, 1)
+        n_t = self.arr_sum(self.Y[-1], 1, self.max_states + 1, 1)
+        n_w = n_t - n_s
+        A = self.lamda - self.nu * n_w
+        Q = A / self.lamda
+        rej_prob = 1 - self.mu / self.lamda * n_t
+        print('Статистическая модель -', 'Интенсивность нагрузки системы:', rho)
+        print('Статистическая модель -', 'Вероятность простоя системы:', p0)
+        print('Статистическая модель -', 'Вероятность отсутствия очереди:', nq_prob)
+        print('Статистическая модель -', 'Среднее число заявок под обслуживанием:', n_s)
+        print('Статистическая модель -', 'Среднее число заявок в системе:', n_t)
+        print('Статистическая модель -', 'Среднее число заявок в очереди:', n_w)
+        print('Статистическая модель -', 'Абсолютная пропускная способность:', A)
+        print('Статистическая модель -', 'Относительная пропускная способность:', Q)
+        print('Статистическая модель -', 'Вероятность отказа:', rej_prob)
+
     @staticmethod
     def mult(element, array):
+        # переопределение умножения для массивов
         for i in range(len(array)):
             array[i] *= element
 
@@ -126,13 +148,26 @@ class StatMod:
 
     @staticmethod
     def add(array, array1):
+        # переопределение сложения для массивов
         for i in range(len(array)):
             array[i] += array1[i]
 
         return array
+
+    @staticmethod
+    def arr_sum(array, n_from, n_to, degree):
+        # сумма элементов массива
+        total = 0
+        for i in range(n_from, n_to):
+            if (i != 0) or (degree != 0):
+                total += array[i] * (i ** degree)
+            else:
+                total += array[i]
+        return total
 
     def run(self):
         """ Основная функция запуска стасистической модели"""
         self.runge_kutta()
         self.get_report()
         self.calc_lim_prob()
+        self.calc_metrics()

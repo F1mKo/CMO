@@ -251,8 +251,8 @@ class Imitation:
                          left=self.t_coming_start[req], color='yellow')
                 plt.barh(req, (self.takeServe[req]['TimeEnd'] - self.takeServe[req]['TimeStart']),
                          left=self.takeServe[req]['TimeStart'], color='b')
-
-        plt.rcParams["figure.figsize"] = (self.time + 50, self.n)
+        plt.title("График обслуживания заявок СМО")
+        #plt.rcParams["figure.figsize"] = (self.time + 50, self.n)
         plt.show()
 
     def print_main_params(self):
@@ -332,3 +332,4 @@ class Imitation:
 
         frequency_characteristic = cls.get_frequency_char(states, count_char, intervals)
         cls.draw_frequency_characteristics(frequency_characteristic, intervals)
+        return request_poll
