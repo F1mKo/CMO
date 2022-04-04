@@ -26,8 +26,7 @@ nu = 1  # интенсивность терпеливости заявок в о
 n = 5  # число каналов обработки
 num_req = 50  # общее число поступивших заявок
 
-sample = Imitation.run(samples, lamda, mu, nu, n, num_req)
-sample.print_plot_workflow()
+Imitation.run(samples, lamda, mu, nu, n, num_req)
 prob = StatMod(lamda, mu, nu, n, num_req, Imitation.max_state + 1, Imitation.tmax)
 prob.run()
 

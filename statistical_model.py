@@ -44,7 +44,7 @@ class StatMod:
             plt.plot(self.ts, self.ps[sys_state], linewidth=1, label='state ' + str(self.st_names[sys_state]))
 
         print("Предельные значения распределения: ", self.Y[-1])
-        print("Сумма вероятностей: ", sum(self.Y[-1]))
+        # print("Сумма вероятностей: ", sum(self.Y[-1]))
 
         plt.title("График вероятностей состояний СМО")
         plt.grid()
@@ -113,9 +113,13 @@ class StatMod:
             ultimate_p.append(p0 * ((self.lamda ** sys_state) / (((self.n * self.mu) ** self.n) * prod_state)))
 
         print(ultimate_p)
-        print('Сравнение предельных вероятностей:')
+        # print('Сравнение предельных вероятностей:')
+        max_variate = 0
         for sys_state in range(self.max_states + 1):
-            print('state ' + str(sys_state), self.Y[-1][sys_state] - ultimate_p[sys_state])
+            if self.Y[-1][sys_state] - ultimate_p[sys_state] > max_variate:
+                max_variate = self.Y[-1][sys_state] - ultimate_p[sys_state]
+            # print('state ' + str(sys_state), self.Y[-1][sys_state] - ultimate_p[sys_state])
+        print('Наибольшее отклонение предельных вероятностей:', max_variate)
 
     def calc_metrics(self):
         # расчет предельных вероятностей состояний системы:

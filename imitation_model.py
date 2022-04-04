@@ -32,6 +32,14 @@ class Imitation:
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
         self.time = self.recalcTService[0]
 
+        self.count_systemDowntime = 0
+        self.count_noQueue = 0
+        self.count_inWork = 0
+        self.count_inSystem = 0
+        self.count_inQueue = 0
+        self.count_reject = 0
+        self.time_requests = 0
+
     def check_queue(self):
         """ Проверяет, обработаны ли все возможные заявки """
         if self.time > self.t_coming_start[-1]:
@@ -88,6 +96,7 @@ class Imitation:
             self.t_ending[req_num] = -1
 
             self.takeServe[req_num]['TimeEnd'] = self.time
+            self.time_requests += self.takeServe[req_num]['TimeEnd'] - self.takeServe[req_num]['TimeStart']
 
             cur_serve = self.takeServe[req_num]
             channels = cur_serve['channels']
@@ -171,6 +180,7 @@ class Imitation:
         index = 0
         for request in self.queue:
             if self.t_waiting[request] == self.time:
+                self.count_reject += 1
                 self.gone[request] = 1
                 del self.queue[index]
             else:
@@ -226,7 +236,18 @@ class Imitation:
         for ch in self.busyChannel:
             if (ch != -1) and (ch not in req_in_work):
                 req_in_work.append(ch)
-        self.requestsHistory[round(self.time, 2)] = len(self.queue) + len(req_in_work)
+        len_queue = len(self.queue)
+        len_work = len(req_in_work)
+        self.requestsHistory[round(self.time, 2)] = len_queue + len_work
+        self.count_inWork += len_work
+        self.count_inSystem += len_queue + len_work
+        self.count_inQueue += len_queue
+
+        if len_queue == 0:
+            self.count_noQueue += 1
+
+        if len_queue + len_work == 0:
+            self.count_systemDowntime += 1
 
     def process_queue(self):
         """ Процесс обработки очереди """
@@ -252,7 +273,6 @@ class Imitation:
                 plt.barh(req, (self.takeServe[req]['TimeEnd'] - self.takeServe[req]['TimeStart']),
                          left=self.takeServe[req]['TimeStart'], color='b')
         plt.title("График обслуживания заявок СМО")
-        #plt.rcParams["figure.figsize"] = (self.time + 50, self.n)
         plt.show()
 
     def print_main_params(self):
@@ -297,6 +317,20 @@ class Imitation:
         count_char = []
         minmax_time = np.inf
         run_number = samples
+        last_request = None
+
+        model_params = {
+            'allTimeMoments': 0,
+            'countDowntime': 0,
+            'countNoQueue': 0,
+            'countInWork': 0,
+            'countInSystem': 0,
+            'countInQueue': 0,
+            'amountRequests': 0,
+            'countReject': 0,
+            'timeRequests': 0,
+            'time': 0,
+        }
 
         for _ in range(run_number):
             request_poll = cls(lamda, mu, nu, n, number)
@@ -306,6 +340,19 @@ class Imitation:
 
             if current_max_time < minmax_time:
                 minmax_time = current_max_time
+
+            model_params['countDowntime'] += request_poll.count_systemDowntime
+            model_params['allTimeMoments'] += len(request_poll.requestsHistory)
+            model_params['countNoQueue'] += request_poll.count_noQueue
+            model_params['countInWork'] += request_poll.count_inWork
+            model_params['countInSystem'] += request_poll.count_inSystem
+            model_params['countInQueue'] += request_poll.count_inQueue
+            model_params['amountRequests'] += request_poll.num_req
+            model_params['countReject'] += request_poll.count_reject
+            model_params['timeRequests'] += request_poll.time_requests
+            model_params['time'] += current_max_time
+
+            last_request = request_poll
 
         intervals = list(np.arange(0.00, minmax_time, 0.01))
         count_time_moments = len(intervals)
@@ -332,4 +379,28 @@ class Imitation:
 
         frequency_characteristic = cls.get_frequency_char(states, count_char, intervals)
         cls.draw_frequency_characteristics(frequency_characteristic, intervals)
-        return request_poll
+        last_request.print_plot_workflow()
+        last_request.print_metrics(model_params)
+
+    @staticmethod
+    def print_metrics(models):
+        """ Расчет и вывод характеристик модели """
+        intense = models['amountRequests'] / models['time']
+        p_system_downtime = models['countDowntime'] / models['allTimeMoments']
+        p_empty = models['countNoQueue'] / models['allTimeMoments']
+        p_reject = models['countReject'] / models['amountRequests']
+        aver_work = models['countInWork'] / models['allTimeMoments']
+        aver_system = models['countInSystem'] / models['allTimeMoments']
+        aver_queue = models['countInQueue'] / models['allTimeMoments']
+        abs_traffic = (models['amountRequests'] - models['countReject']) / models['time']
+        rel_traffic = abs_traffic / intense
+
+        print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
+        print('Имитационная модель -', 'Вероятность простоя системы:', p_system_downtime)
+        print('Имитационная модель -', 'Вероятность отсутствия очереди:', p_empty)
+        print('Имитационная модель -', 'Среднее число заявок под обслуживанием:', aver_work)
+        print('Имитационная модель -', 'Среднее число заявок в системе:', aver_system)
+        print('Имитационная модель -', 'Среднее число заявок в очереди:', aver_queue)
+        print('Имитационная модель -', 'Абсолютная пропускная способность:', abs_traffic)
+        print('Имитационная модель -', 'Относительная пропускная способность:', rel_traffic)
+        print('Имитационная модель -', 'Вероятность отказа:', p_reject)
