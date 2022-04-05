@@ -8,7 +8,7 @@ class StatMod:
         self.mu = mu  # интенсивность обработки заявки
         self.nu = nu  # интенсивность терпеливости заявок в очереди
         self.n = n  # число каналов обработки
-        self.num_req = num_req  # общее число поступивших заявок (максимальное возможное число состояний)
+        self.num_req = num_req  # общее число поступивших заявок (максимально возможное число состояний)
         self.max_states = imitation_states
         self.tmax = tmax  # максимально допустимый момент времени
         self.ts = []
@@ -17,7 +17,7 @@ class StatMod:
         self.st_names = [name for name in range(self.max_states)]
         self.ps = [[] for _ in range(self.max_states)]
         self.Y = np.array(0)
-        self.tau = 0.05  # шаг интегрирования
+        self.tau = 0.01  # шаг интегрирования
 
     def f(self, p):
         """ Функция правых частей системы ОДУ """
@@ -173,5 +173,5 @@ class StatMod:
         """ Основная функция запуска стасистической модели"""
         self.runge_kutta()
         self.get_report()
-        self.calc_lim_prob()
+#        self.calc_lim_prob()
         self.calc_metrics()

@@ -32,8 +32,8 @@ class Imitation:
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
         self.time = self.recalcTService[0]
 
-        self.count_systemDowntime = 0
-        self.count_noQueue = 0
+        self.count_systemDowntime = 1
+        self.count_noQueue = 1
         self.count_inWork = 0
         self.count_inSystem = 0
         self.count_inQueue = 0
@@ -320,16 +320,16 @@ class Imitation:
         last_request = None
 
         model_params = {
-            'allTimeMoments': 0,
-            'countDowntime': 0,
-            'countNoQueue': 0,
-            'countInWork': 0,
-            'countInSystem': 0,
-            'countInQueue': 0,
-            'amountRequests': 0,
-            'countReject': 0,
-            'timeRequests': 0,
-            'time': 0,
+            'allTimeMoments': [],
+            'countDowntime': [],
+            'countNoQueue': [],
+            'countInWork': [],
+            'countInSystem': [],
+            'countInQueue': [],
+            'amountRequests': [],
+            'countReject': [],
+            'timeRequests': [],
+            'time': [],
         }
 
         for _ in range(run_number):
@@ -341,23 +341,23 @@ class Imitation:
             if current_max_time < minmax_time:
                 minmax_time = current_max_time
 
-            model_params['countDowntime'] += request_poll.count_systemDowntime
-            model_params['allTimeMoments'] += len(request_poll.requestsHistory)
-            model_params['countNoQueue'] += request_poll.count_noQueue
-            model_params['countInWork'] += request_poll.count_inWork
-            model_params['countInSystem'] += request_poll.count_inSystem
-            model_params['countInQueue'] += request_poll.count_inQueue
-            model_params['amountRequests'] += request_poll.num_req
-            model_params['countReject'] += request_poll.count_reject
-            model_params['timeRequests'] += request_poll.time_requests
-            model_params['time'] += current_max_time
+            model_params['countDowntime'].append(request_poll.count_systemDowntime)
+            model_params['allTimeMoments'].append(len(request_poll.requestsHistory))
+            model_params['countNoQueue'].append(request_poll.count_noQueue)
+            model_params['countInWork'].append(request_poll.count_inWork)
+            model_params['countInSystem'].append(request_poll.count_inSystem)
+            model_params['countInQueue'].append(request_poll.count_inQueue)
+            model_params['amountRequests'].append(request_poll.num_req)
+            model_params['countReject'].append(request_poll.count_reject)
+            model_params['timeRequests'].append(request_poll.time_requests)
+            model_params['time'].append(current_max_time)
 
             last_request = request_poll
 
         intervals = list(np.arange(0.00, minmax_time, 0.01))
         count_time_moments = len(intervals)
         step = 0.01
-        cls.tmax = count_time_moments * step
+        cls.tmax = minmax_time
 
         avail_states = {}
         for time in intervals:
@@ -385,14 +385,14 @@ class Imitation:
     @staticmethod
     def print_metrics(models):
         """ Расчет и вывод характеристик модели """
-        intense = models['amountRequests'] / models['time']
-        p_system_downtime = models['countDowntime'] / models['allTimeMoments']
-        p_empty = models['countNoQueue'] / models['allTimeMoments']
-        p_reject = models['countReject'] / models['amountRequests']
-        aver_work = models['countInWork'] / models['allTimeMoments']
-        aver_system = models['countInSystem'] / models['allTimeMoments']
-        aver_queue = models['countInQueue'] / models['allTimeMoments']
-        abs_traffic = (models['amountRequests'] - models['countReject']) / models['time']
+        intense = np.array([models['amountRequests'][i] / models['time'][i] for i in range(len(models['time']))]).mean()
+        p_system_downtime = np.array([models['countDowntime'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
+        p_empty = np.array([models['countNoQueue'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
+        p_reject = np.array([models['countReject'][i] / models['amountRequests'][i] for i in range(len(models['amountRequests']))]).mean()
+        aver_work = np.array([models['countInWork'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
+        aver_system = np.array([models['countInSystem'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
+        aver_queue = np.array([models['countInQueue'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
+        abs_traffic = np.array([((models['amountRequests'][i] - models['countReject'][i]) / models['amountRequests'][i]) for i in range(len(models['amountRequests']))]).mean()
         rel_traffic = abs_traffic / intense
 
         print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
