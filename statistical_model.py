@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+from scipy.integrate import ode
 
 class StatMod:
     def __init__(self, lamda=10, mu=1, nu=5, n=5, num_req=50, imitation_states=50, tmax=5):
@@ -17,9 +17,27 @@ class StatMod:
         self.st_names = [name for name in range(self.max_states)]
         self.ps = [[] for _ in range(self.max_states)]
         self.Y = np.array(0)
-        self.tau = 0.01  # шаг интегрирования
+        self.tau = 0.0025  # шаг интегрирования
 
-    def f(self, p):
+    def foot(self, t, y):
+        # обработчик шага
+        self.ts.append(t)
+        self.ys.append(list(y.copy()))
+
+        for state in range(self.max_states):
+            self.ps[state].append(y[state])
+        if t > self.tmax:
+            return -1
+
+    def solve(self):
+        """ Численное интегирование СДУ и последующая запись результатов"""
+        ODE = ode(self.f)
+        ODE.set_integrator('dopri5', max_step=0.05)
+        ODE.set_solout(self.foot)
+        ODE.set_initial_value(self.y0, self.t0)  # задание начальных значений
+        ODE.integrate(self.tmax)  # решение ОДУ
+
+    def f(self, t, p):
         """ Функция правых частей системы ОДУ """
         n, num_req, lamda, mu, nu = self.n, self.num_req, self.lamda, self.mu, self.nu
         result = [-lamda * p[0] + n * mu * p[1]]
@@ -49,13 +67,12 @@ class StatMod:
         plt.legend()
         plt.show()
 
-    def increment(self, y):
+    def increment(self, t, y, h):
         """ Вычисление коэффициентов для 4-х этапного метода Рунге-Кутты """
-        tau = self.tau
-        k1 = self.mult(tau, self.f(y))
-        k2 = self.mult(tau, self.f(self.add(y, self.mult(tau / 2.0, k1))))
-        k3 = self.mult(tau, self.f(self.add(y, self.mult(tau / 2.0, k2))))
-        k4 = self.mult(tau, self.f(self.add(y, self.mult(tau, k3))))
+        k1 = self.mult(h, self.f(t, y))
+        k2 = self.mult(h, self.f(t, self.add(y, self.mult(h / 2.0, k1))))
+        k3 = self.mult(h, self.f(t, self.add(y, self.mult(h / 2.0, k2))))
+        k4 = self.mult(h, self.f(t, self.add(y, self.mult(h, k3))))
 
         result = self.add(self.mult(1 / 6, k1), self.mult(1 / 3, k2))
         result = self.add(result, self.mult(1 / 3, k3))
@@ -70,19 +87,35 @@ class StatMod:
 
         cur_t = self.t0
         cur_y = self.y0
+        tau = self.tau
+        rtol = 10 ** (-15)
 
         for state in range(self.max_states):
             self.ps[state].append(cur_y[state])
 
         while cur_t < self.tmax:  # цикл по временному промежутку интегрирования
-            self.tau = min(self.tau, self.tmax - cur_t)  # определение минимального шага self.tau
-            cur_y = self.add(cur_y, self.increment(cur_y))  # расчёт значения в точке t0,y0 для задачи Коши
-            cur_t = cur_t + self.tau  # приращение времени
-            self.ts.append(cur_t)
-            self.ys.append(cur_y)
-
-            for state in range(self.max_states):
-                self.ps[state].append(cur_y[state])
+            cur_y = self.add(cur_y, self.increment(cur_t, cur_y, tau))  # расчёт значения в точке t0,y0 для задачи Коши
+            cur_y2 = self.add(cur_y, self.increment(cur_t, cur_y, tau / 2.0))  # расчёт значения в точке t0,y0 для задачи Коши
+            epsilon = (abs(np.array(cur_y) - np.array(cur_y2))).max()
+            if epsilon > rtol * 15:
+                tau = tau / 2.0
+            else:
+                if epsilon >= rtol / 32:
+                    cur_t = cur_t + tau / 2.0
+                    cur_y = cur_y2
+                    self.ts.append(cur_t)
+                    self.ys.append(cur_y)
+                    for state in range(self.max_states):
+                        self.ps[state].append(cur_y[state])
+                else:
+                    cur_t = cur_t + tau / 2.0
+                    cur_y = cur_y2
+                    self.ts.append(cur_t)
+                    self.ys.append(cur_y)
+                    if tau * 2 <= 0.00001:
+                        tau = tau * 2
+                    for state in range(self.max_states):
+                        self.ps[state].append(cur_y[state])
 
     def calc_lim_prob(self):
         # расчет предельных вероятностей состояний системы:
@@ -171,6 +204,7 @@ class StatMod:
     def run(self):
         """ Основная функция запуска стасистической модели"""
         self.runge_kutta()
+#        self.solve()
         self.get_report()
 #        self.calc_lim_prob()
         self.calc_metrics()
