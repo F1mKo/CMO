@@ -21,17 +21,15 @@ class StatMod:
 
     def f(self, p):
         """ Функция правых частей системы ОДУ """
-        n = self.n
-        num_req = self.num_req
-
-        result = [-self.lamda * p[0] + n * self.mu * p[1]]
-        result += [(self.lamda * p[i - 1] - (self.lamda + n * self.mu) * p[i] + n * self.mu * p[i + 1])
+        n, num_req, lamda, mu, nu = self.n, self.num_req, self.lamda, self.mu, self.nu
+        result = [-lamda * p[0] + n * mu * p[1]]
+        result += [(lamda * p[i - 1] - (lamda + n * mu) * p[i] + n * mu * p[i + 1])
                    for i in range(1, n)]
 
-        result += [self.lamda * p[i - 1] - (self.lamda + n * self.mu + (i - n) * self.nu) * p[i] +
-                   (n * self.mu + (i - n + 1) * self.nu) * p[i + 1] for i in range(n, num_req)]
+        result += [lamda * p[i - 1] - (lamda + n * mu + (i - n) * nu) * p[i] +
+                   (n * mu + (i - n + 1) * nu) * p[i + 1] for i in range(n, num_req)]
 
-        result += [self.lamda * p[num_req - 1] - (self.lamda + n * self.mu + (num_req - n) * self.nu) * p[num_req]]
+        result += [lamda * p[num_req - 1] - (lamda + n * mu + (num_req - n) * nu) * p[num_req]]
 
         return result
 
@@ -53,10 +51,11 @@ class StatMod:
 
     def increment(self, y):
         """ Вычисление коэффициентов для 4-х этапного метода Рунге-Кутты """
-        k1 = self.mult(self.tau, self.f(y))
-        k2 = self.mult(self.tau, self.f(self.add(y, self.mult(0.5 * self.tau, k1))))
-        k3 = self.mult(self.tau, self.f(self.add(y, self.mult(0.5 * self.tau, k2))))
-        k4 = self.mult(self.tau, self.f(self.add(y, self.mult(self.tau, k3))))
+        tau = self.tau
+        k1 = self.mult(tau, self.f(y))
+        k2 = self.mult(tau, self.f(self.add(y, self.mult(tau / 2.0, k1))))
+        k3 = self.mult(tau, self.f(self.add(y, self.mult(tau / 2.0, k2))))
+        k4 = self.mult(tau, self.f(self.add(y, self.mult(tau, k3))))
 
         result = self.add(self.mult(1 / 6, k1), self.mult(1 / 3, k2))
         result = self.add(result, self.mult(1 / 3, k3))
