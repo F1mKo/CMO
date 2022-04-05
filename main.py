@@ -19,7 +19,7 @@ plt.rcParams.update(params)
 plt.style.use('seaborn-whitegrid')
 sns.set_style("white")
 
-samples = 1000
+samples = 2000
 lamda = 5  # интенсивность появления новых заявок
 mu = 0.75  # интенсивность обработки заявки
 nu = 1  # интенсивность терпеливости заявок в очереди

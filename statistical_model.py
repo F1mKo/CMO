@@ -88,19 +88,33 @@ class StatMod:
         cur_t = self.t0
         cur_y = self.y0
         tau = self.tau
+        tmax = self.tmax
         rtol = 10 ** (-15)
 
         for state in range(self.max_states):
             self.ps[state].append(cur_y[state])
 
-        while cur_t < self.tmax:  # цикл по временному промежутку интегрирования
-            cur_y = self.add(cur_y, self.increment(cur_t, cur_y, tau))  # расчёт значения в точке t0,y0 для задачи Коши
-            cur_y2 = self.add(cur_y, self.increment(cur_t, cur_y, tau / 2.0))  # расчёт значения в точке t0,y0 для задачи Коши
-            epsilon = (abs(np.array(cur_y) - np.array(cur_y2))).max()
-            if epsilon > rtol * 15:
+        while cur_t < tmax:  # цикл по временному промежутку интегрирования
+            #tau = min(tau, tmax - cur_t)
+            if tau < tmax - cur_t:
+                cur_y = self.add(cur_y, self.increment(cur_t, cur_y, tau))  # расчёт значения в точке t, y для задачи Коши
+                cur_t = cur_t + tau
+            else:
+                tau = tmax - cur_t
+                cur_y = self.add(cur_y, self.increment(cur_t, cur_y, tau))  # расчёт значения в точке t, y для задачи Коши
+                cur_t = tmax
+            self.ts.append(cur_t)
+            self.ys.append(cur_y)
+            for state in range(self.max_states):
+                self.ps[state].append(cur_y[state])
+            """
+            cur_y1 = self.add(cur_y, self.increment(cur_t, cur_y, tau))  # расчёт значения в точке t,y для задачи Коши
+            cur_y2 = self.add(cur_y, self.increment(cur_t, cur_y, tau / 2.0))  # расчёт значения в точке t,y для задачи Коши
+            err = (abs(np.array(cur_y1) - np.array(cur_y2))).max()
+            if err > rtol * 15:
                 tau = tau / 2.0
             else:
-                if epsilon >= rtol / 32:
+                if err >= rtol / 32:
                     cur_t = cur_t + tau / 2.0
                     cur_y = cur_y2
                     self.ts.append(cur_t)
@@ -112,10 +126,11 @@ class StatMod:
                     cur_y = cur_y2
                     self.ts.append(cur_t)
                     self.ys.append(cur_y)
-                    if tau * 2 <= 0.00001:
+                    if tau * 2 <= 0.0001:
                         tau = tau * 2
                     for state in range(self.max_states):
                         self.ps[state].append(cur_y[state])
+            """
 
     def calc_lim_prob(self):
         # расчет предельных вероятностей состояний системы:
@@ -203,8 +218,8 @@ class StatMod:
 
     def run(self):
         """ Основная функция запуска стасистической модели"""
-        self.runge_kutta()
-#        self.solve()
+#        self.runge_kutta()
+        self.solve()
         self.get_report()
 #        self.calc_lim_prob()
         self.calc_metrics()
