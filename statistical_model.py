@@ -17,7 +17,7 @@ class StatMod:
         self.st_names = [name for name in range(self.max_states)]
         self.ps = [[] for _ in range(self.max_states)]
         self.Y = np.array(0)
-        self.tau = 0.0025  # шаг интегрирования
+        self.tau = 0.01  # шаг интегрирования
 
     def foot(self, t, y):
         # обработчик шага
@@ -32,7 +32,7 @@ class StatMod:
     def solve(self):
         """ Численное интегирование СДУ и последующая запись результатов"""
         ODE = ode(self.f)
-        ODE.set_integrator('dopri5', max_step=0.05)
+        ODE.set_integrator('dopri5', max_step=0.01)
         ODE.set_solout(self.foot)
         ODE.set_initial_value(self.y0, self.t0)  # задание начальных значений
         ODE.integrate(self.tmax)  # решение ОДУ
@@ -59,7 +59,7 @@ class StatMod:
         for sys_state in range(len(self.ps)):
             plt.plot(self.ts, self.ps[sys_state], linewidth=1, label='state ' + str(self.st_names[sys_state]))
 
-        print("Предельные значения распределения: ", self.Y[-1])
+        #print("Предельные значения распределения: ", self.Y[-1])
         # print("Сумма вероятностей: ", sum(self.Y[-1]))
 
         plt.title("График вероятностей состояний СМО")
@@ -82,27 +82,28 @@ class StatMod:
 
     def runge_kutta(self):
         """ Численное интегирование СДУ и последующая запись результатов"""
-        self.ts.append(self.t0)  # внесение начальных значений
-        self.ys.append(self.y0)
 
         cur_t = self.t0
         cur_y = self.y0
         tau = self.tau
-        tmax = self.tmax
+        end_t = self.tmax
         rtol = 10 ** (-15)
 
+        self.ts.append(cur_t)  # внесение начальных значений
+        self.ys.append(cur_y)
         for state in range(self.max_states):
             self.ps[state].append(cur_y[state])
 
-        while cur_t < tmax:  # цикл по временному промежутку интегрирования
-            #tau = min(tau, tmax - cur_t)
-            if tau < tmax - cur_t:
+        while cur_t < end_t:  # цикл по временному промежутку интегрирования
+            #tau = min(tau, end_t - cur_t)
+            if tau < end_t - cur_t:
                 cur_y = self.add(cur_y, self.increment(cur_t, cur_y, tau))  # расчёт значения в точке t, y для задачи Коши
                 cur_t = cur_t + tau
             else:
-                tau = tmax - cur_t
+                tau = end_t - cur_t
                 cur_y = self.add(cur_y, self.increment(cur_t, cur_y, tau))  # расчёт значения в точке t, y для задачи Коши
-                cur_t = tmax
+                cur_t = end_t
+
             self.ts.append(cur_t)
             self.ys.append(cur_y)
             for state in range(self.max_states):
@@ -218,8 +219,8 @@ class StatMod:
 
     def run(self):
         """ Основная функция запуска стасистической модели"""
-#        self.runge_kutta()
-        self.solve()
+        self.runge_kutta()
+#        self.solve()
         self.get_report()
 #        self.calc_lim_prob()
-        self.calc_metrics()
+        #self.calc_metrics()

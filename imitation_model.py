@@ -32,8 +32,8 @@ class Imitation:
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
         self.time = self.recalcTService[0]
 
-        self.count_systemDowntime = 1
-        self.count_noQueue = 1
+        self.count_systemDowntime = 0
+        self.count_noQueue = 0
         self.count_inWork = 0
         self.count_inSystem = 0
         self.count_inQueue = 0
@@ -304,6 +304,7 @@ class Imitation:
     @staticmethod
     def draw_frequency_characteristics(chars, t_moments):
         fig, ax = plt.subplots()
+        print('t_mom', len(t_moments))
         for sys_state in chars:
             plt.plot(t_moments, chars[sys_state], linewidth=1, label='state ' + str(sys_state))
 
@@ -356,8 +357,9 @@ class Imitation:
 
         intervals = list(np.arange(0.00, minmax_time, 0.01))
         count_time_moments = len(intervals)
+        print('ppp', count_time_moments)
         step = 0.01
-        cls.tmax = minmax_time
+        cls.tmax = count_time_moments * step
 
         avail_states = {}
         for time in intervals:
@@ -379,8 +381,8 @@ class Imitation:
 
         frequency_characteristic = cls.get_frequency_char(states, count_char, intervals)
         cls.draw_frequency_characteristics(frequency_characteristic, intervals)
-        last_request.print_plot_workflow()
-        last_request.print_metrics(model_params)
+        #last_request.print_plot_workflow()
+        #cls.print_metrics(model_params)
 
     @staticmethod
     def print_metrics(models):
