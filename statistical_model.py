@@ -43,7 +43,9 @@ class StatMod:
         for sys_state in range(len(self.ps)):
             plt.plot(self.ts, self.ps[sys_state], linewidth=1, label='state ' + str(self.st_names[sys_state]))
 
-        print("Предельные значения распределения: ", self.Y[-1])
+        print("Предельные значения распределения: ")
+        for sys_state in range(self.max_states):
+            print('state ' + str(sys_state) + ': ' + str(self.Y[-1][sys_state]))
         # print("Сумма вероятностей: ", sum(self.Y[-1]))
 
         plt.title("График вероятностей состояний СМО")
@@ -112,14 +114,14 @@ class StatMod:
                 prod_state *= (self.n * self.mu + j * self.nu)
             ultimate_p.append(p0 * ((self.lamda ** sys_state) / (((self.n * self.mu) ** self.n) * prod_state)))
 
-        print(ultimate_p)
+        # print(ultimate_p)
         # print('Сравнение предельных вероятностей:')
         max_variate = 0
         for sys_state in range(self.max_states + 1):
             if self.Y[-1][sys_state] - ultimate_p[sys_state] > max_variate:
                 max_variate = self.Y[-1][sys_state] - ultimate_p[sys_state]
-            # print('state ' + str(sys_state), self.Y[-1][sys_state] - ultimate_p[sys_state])
-        print('Наибольшее отклонение предельных вероятностей:', max_variate)
+
+        print('Наибольшее отклонение предельных вероятностей: ', max_variate)
 
     def calc_metrics(self):
         # расчет предельных вероятностей состояний системы:
@@ -141,6 +143,7 @@ class StatMod:
         print('Статистическая модель -', 'Абсолютная пропускная способность:', A)
         print('Статистическая модель -', 'Относительная пропускная способность:', Q)
         print('Статистическая модель -', 'Вероятность отказа:', rej_prob)
+        print('')
 
     @staticmethod
     def mult(element, array):
@@ -173,5 +176,5 @@ class StatMod:
         """ Основная функция запуска стасистической модели"""
         self.runge_kutta()
         self.get_report()
-#        self.calc_lim_prob()
+        self.calc_lim_prob()
         self.calc_metrics()

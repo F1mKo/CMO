@@ -31,6 +31,7 @@ class Imitation:
 
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
         self.time = self.recalcTService[0]
+        self.step = 0.01
 
         self.count_systemDowntime = 1
         self.count_noQueue = 1
@@ -38,6 +39,12 @@ class Imitation:
         self.count_inSystem = 0
         self.count_inQueue = 0
         self.count_reject = 0
+
+        self.PrevCount_inWork = 0
+        self.PrevCount_inSystem = 0
+        self.PrevCount_inQueue = 0
+
+        self.countChecks = 0
         self.time_requests = 0
 
     def check_queue(self):
@@ -225,7 +232,7 @@ class Imitation:
         return free, busy
 
     def check_next_event(self):
-        """ Проверка на следующее событие и установка следующего времени остановки """
+        """ Установка следующего времени остановки """
         index = self.recalcTService.index(self.time)
         if index < (len(self.recalcTService) - 1):
             self.time = self.recalcTService[index + 1]
@@ -238,16 +245,30 @@ class Imitation:
                 req_in_work.append(ch)
         len_queue = len(self.queue)
         len_work = len(req_in_work)
+
+        countSteps = 0
+        index = self.recalcTService.index(self.time)
+        if index > 0:
+            prev_time = self.recalcTService[index - 1]
+            countSteps = int((self.time - prev_time) / self.step)
+
         self.requestsHistory[round(self.time, 2)] = len_queue + len_work
-        self.count_inWork += len_work
-        self.count_inSystem += len_queue + len_work
-        self.count_inQueue += len_queue
 
-        if len_queue == 0:
-            self.count_noQueue += 1
+        self.count_inWork += self.PrevCount_inWork * countSteps
+        self.PrevCount_inWork = len_work
 
-        if len_queue + len_work == 0:
-            self.count_systemDowntime += 1
+        self.count_inSystem += self.PrevCount_inSystem * countSteps
+        self.count_inQueue += self.PrevCount_inQueue * countSteps
+
+        if self.PrevCount_inQueue == 0:
+            self.count_noQueue += countSteps
+
+        if self.PrevCount_inSystem == 0:
+            self.count_systemDowntime += countSteps
+
+        self.PrevCount_inQueue = len_queue
+        self.PrevCount_inSystem = len_queue + len_work
+        self.countChecks += countSteps
 
     def process_queue(self):
         """ Процесс обработки очереди """
@@ -305,6 +326,7 @@ class Imitation:
     def draw_frequency_characteristics(chars, t_moments):
         fig, ax = plt.subplots()
         for sys_state in chars:
+            print('state ' + str(sys_state) + ': ' + str(chars[sys_state][-1]))
             plt.plot(t_moments, chars[sys_state], linewidth=1, label='state ' + str(sys_state))
 
         plt.title("График частотных характеристик СМО")
@@ -342,7 +364,7 @@ class Imitation:
                 minmax_time = current_max_time
 
             model_params['countDowntime'].append(request_poll.count_systemDowntime)
-            model_params['allTimeMoments'].append(len(request_poll.requestsHistory))
+            model_params['allTimeMoments'].append(request_poll.countChecks)
             model_params['countNoQueue'].append(request_poll.count_noQueue)
             model_params['countInWork'].append(request_poll.count_inWork)
             model_params['countInSystem'].append(request_poll.count_inSystem)
@@ -354,9 +376,8 @@ class Imitation:
 
             last_request = request_poll
 
-        intervals = list(np.arange(0.00, minmax_time, 0.01))
+        intervals = list(np.arange(0.00, minmax_time, last_request.step))
         count_time_moments = len(intervals)
-        step = 0.01
         cls.tmax = minmax_time
 
         avail_states = {}
@@ -367,7 +388,7 @@ class Imitation:
                     if time == 0:
                         count_char[run_index][time] = 0
                     else:
-                        count_char[run_index][time] = count_char[run_index][round(time - step, 2)]
+                        count_char[run_index][time] = count_char[run_index][round(time - last_request.step, 2)]
 
                 if count_char[run_index][time] not in avail_states:
                     avail_states[count_char[run_index][time]] = 0
@@ -379,13 +400,13 @@ class Imitation:
 
         frequency_characteristic = cls.get_frequency_char(states, count_char, intervals)
         cls.draw_frequency_characteristics(frequency_characteristic, intervals)
-        last_request.print_plot_workflow()
+        # last_request.print_plot_workflow()
         last_request.print_metrics(model_params)
 
     @staticmethod
     def print_metrics(models):
         """ Расчет и вывод характеристик модели """
-        intense = np.array([models['amountRequests'][i] / models['time'][i] for i in range(len(models['time']))]).mean()
+        intense = np.array([models['amountRequests'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean() 
         p_system_downtime = np.array([models['countDowntime'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
         p_empty = np.array([models['countNoQueue'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
         p_reject = np.array([models['countReject'][i] / models['amountRequests'][i] for i in range(len(models['amountRequests']))]).mean()
@@ -404,3 +425,4 @@ class Imitation:
         print('Имитационная модель -', 'Абсолютная пропускная способность:', abs_traffic)
         print('Имитационная модель -', 'Относительная пропускная способность:', rel_traffic)
         print('Имитационная модель -', 'Вероятность отказа:', p_reject)
+        print('')
