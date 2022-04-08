@@ -46,7 +46,6 @@ class StatMod:
         print("Предельные значения распределения: ")
         for sys_state in range(self.max_states):
             print('state ' + str(sys_state) + ': ' + str(self.Y[-1][sys_state]))
-        # print("Сумма вероятностей: ", sum(self.Y[-1]))
 
         plt.title("График вероятностей состояний СМО")
         plt.grid()
@@ -115,7 +114,6 @@ class StatMod:
             ultimate_p.append(p0 * ((self.lamda ** sys_state) / (((self.n * self.mu) ** self.n) * prod_state)))
 
         # print(ultimate_p)
-        # print('Сравнение предельных вероятностей:')
         max_variate = 0
         for sys_state in range(self.max_states + 1):
             if self.Y[-1][sys_state] - ultimate_p[sys_state] > max_variate:
@@ -126,7 +124,6 @@ class StatMod:
     def calc_metrics(self):
         # расчет предельных вероятностей состояний системы:
         p0 = self.Y[-1][0]
-        # rho = self.lamda / (self.n * self.mu)
         nq_prob = self.arr_sum(self.Y[-1], 0, self.n, 0)
         array = self.Y[-1]
         n_s = 0
@@ -136,19 +133,19 @@ class StatMod:
             n_w += array[self.n + i] * i
         for i in range(1, self.n + 1):
             n_s += array[i] * i
-        # n_w = n_t - n_s
+
         rej_prob = self.nu * n_w / self.lamda
         Q = 1 - rej_prob
         A = Q * self.lamda
-        # print('Статистическая модель -', 'Интенсивность нагрузки системы:', rho)
-        print('Статистическая модель -', 'Вероятность простоя системы:', p0)
-        print('Статистическая модель -', 'Вероятность отсутствия очереди:', nq_prob)
-        print('Статистическая модель -', 'Среднее число заявок под обслуживанием:', n_s)
-        print('Статистическая модель -', 'Среднее число заявок в системе:', n_t)
-        print('Статистическая модель -', 'Среднее число заявок в очереди:', n_w)
-        print('Статистическая модель -', 'Абсолютная пропускная способность:', A)
-        print('Статистическая модель -', 'Относительная пропускная способность:', Q)
-        print('Статистическая модель -', 'Вероятность отказа:', rej_prob)
+
+        print('Вероятность простоя системы:', p0)
+        print('Вероятность отсутствия очереди:', nq_prob)
+        print('Среднее число заявок под обслуживанием:', n_s)
+        print('Среднее число заявок в системе:', n_t)
+        print('Среднее число заявок в очереди:', n_w)
+        print('Абсолютная пропускная способность:', A)
+        print('Относительная пропускная способность:', Q)
+        print('Вероятность отказа:', rej_prob)
         print('')
 
     @staticmethod
@@ -180,6 +177,7 @@ class StatMod:
 
     def run(self):
         """ Основная функция запуска стасистической модели"""
+        print('Статистическая модель:')
         self.runge_kutta()
         self.get_report()
         self.calc_lim_prob()

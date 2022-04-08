@@ -255,11 +255,11 @@ class Imitation:
             prev_time = self.recalcTService[index - 1]
             countSteps = int((self.time - prev_time) / self.step)
 
-        self.requestsHistory[round(self.time, 2)] = len_queue + len_work
-
         for i in range(countSteps):
             self.countsInWork['count'].append(self.PrevCount_inWork)
             self.countsInWork['time'].append(prev_time + i * self.step)
+
+            self.requestsHistory[round(prev_time + i * self.step, 2)] = self.PrevCount_inSystem
 
         self.count_inWork += self.PrevCount_inWork * countSteps
         self.PrevCount_inWork = len_work
@@ -353,6 +353,7 @@ class Imitation:
 
     @classmethod
     def run(cls, samples=1000, lamda=10, mu=1, nu=5, n=5, number=500):
+        print('Имитационная модель:')
         count_char = []
         minmax_time = np.inf
         run_number = samples
@@ -398,7 +399,7 @@ class Imitation:
         count_time_moments = len(intervals)
         cls.tmax = minmax_time
 
-        avail_states = {}
+        max_avail_states = 0
         for time in intervals:
             time = round(time, 2)
             for run_index in range(len(count_char)):
@@ -408,10 +409,10 @@ class Imitation:
                     else:
                         count_char[run_index][time] = count_char[run_index][round(time - last_request.step, 2)]
 
-                if count_char[run_index][time] not in avail_states:
-                    avail_states[count_char[run_index][time]] = 0
+                if count_char[run_index][time] > max_avail_states:
+                    max_avail_states = count_char[run_index][time]
 
-        cls.max_state = max(avail_states, key=lambda x: x)
+        cls.max_state = max_avail_states
         states = {}
         for st in range(cls.max_state + 1):
             states[st] = [0 for _ in range(count_time_moments)]
@@ -425,31 +426,26 @@ class Imitation:
     @staticmethod
     def print_metrics(models):
         """ Расчет и вывод характеристик модели """
-        # intense = np.array([models['amountRequests'][i] / models['allTimeMoments'][i]
-        # for i in range(len(models['allTimeMoments']))]).mean()
-        p_system_downtime = np.array([models['countDowntime'][i] / models['allTimeMoments'][i]
-                                      for i in range(len(models['allTimeMoments']))]).mean()
-        p_empty = np.array([models['countNoQueue'][i] / models['allTimeMoments'][i]
-                            for i in range(len(models['allTimeMoments']))]).mean()
-        p_reject = np.array([models['countReject'][i] / models['amountRequests'][i]
-                             for i in range(len(models['amountRequests']))]).mean()
-        aver_work = np.array([models['countInWork'][i] / models['allTimeMoments'][i]
-                              for i in range(len(models['allTimeMoments']))]).mean()
-        aver_system = np.array([models['countInSystem'][i] / models['allTimeMoments'][i]
-                                for i in range(len(models['allTimeMoments']))]).mean()
-        aver_queue = np.array([models['countInQueue'][i] / models['allTimeMoments'][i]
-                               for i in range(len(models['allTimeMoments']))]).mean()
-        rel_traffic = np.array([((models['amountRequests'][i] - models['countReject'][i]) / models['amountRequests'][i])
-                                for i in range(len(models['amountRequests']))]).mean()
+        times = models['allTimeMoments']
+        times_len = len(models['allTimeMoments'])
+        amounts = models['amountRequests']
+
+        p_system_downtime = np.array([models['countDowntime'][i] / times[i] for i in range(times_len)]).mean()
+        p_empty = np.array([models['countNoQueue'][i] / times[i] for i in range(times_len)]).mean()
+        p_reject = np.array([models['countReject'][i] / amounts[i] for i in range(len(amounts))]).mean()
+        aver_work = np.array([models['countInWork'][i] / times[i] for i in range(times_len)]).mean()
+        aver_system = np.array([models['countInSystem'][i] / times[i] for i in range(times_len)]).mean()
+        aver_queue = np.array([models['countInQueue'][i] / times[i] for i in range(times_len)]).mean()
+        rel_traffic = np.array([((amounts[i] - models['countReject'][i]) / amounts[i])
+                                for i in range(len(amounts))]).mean()
         abs_traffic = rel_traffic * models['lamda']
 
-        # print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
-        print('Имитационная модель -', 'Вероятность простоя системы:', p_system_downtime)
-        print('Имитационная модель -', 'Вероятность отсутствия очереди:', p_empty)
-        print('Имитационная модель -', 'Среднее число заявок под обслуживанием:', aver_work)
-        print('Имитационная модель -', 'Среднее число заявок в системе:', aver_system)
-        print('Имитационная модель -', 'Среднее число заявок в очереди:', aver_queue)
-        print('Имитационная модель -', 'Абсолютная пропускная способность:', abs_traffic)
-        print('Имитационная модель -', 'Относительная пропускная способность:', rel_traffic)
-        print('Имитационная модель -', 'Вероятность отказа:', p_reject)
+        print('Вероятность простоя системы:', p_system_downtime)
+        print('Вероятность отсутствия очереди:', p_empty)
+        print('Среднее число заявок под обслуживанием:', aver_work)
+        print('Среднее число заявок в системе:', aver_system)
+        print('Среднее число заявок в очереди:', aver_queue)
+        print('Абсолютная пропускная способность:', abs_traffic)
+        print('Относительная пропускная способность:', rel_traffic)
+        print('Вероятность отказа:', p_reject)
         print('')
