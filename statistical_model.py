@@ -138,8 +138,8 @@ class StatMod:
             n_s += array[i] * i
         #n_w = n_t - n_s
         A = self.lamda - self.nu * n_w
-        Q = A / self.lamda
-        rej_prob = 1 - self.mu / self.lamda * n_w
+        Q = 1 - self.nu * n_w / self.lamda
+        rej_prob = 1 - Q
         print('Статистическая модель -', 'Интенсивность нагрузки системы:', rho)
         print('Статистическая модель -', 'Вероятность простоя системы:', p0)
         print('Статистическая модель -', 'Вероятность отсутствия очереди:', nq_prob)
