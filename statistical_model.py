@@ -127,13 +127,19 @@ class StatMod:
         # расчет предельных вероятностей состояний системы:
         p0 = self.Y[-1][0]
         rho = self.lamda / (self.n * self.mu)
-        nq_prob = self.arr_sum(self.Y[-1], 0, self.n + 1, 0)
-        n_s = self.arr_sum(self.Y[-1], 1, self.n + 1, 1)
-        n_t = self.arr_sum(self.Y[-1], 1, self.max_states + 1, 1)
-        n_w = n_t - n_s
+        nq_prob = self.arr_sum(self.Y[-1], 0, self.n, 0)
+        array = self.Y[-1]
+        n_s = 0
+        n_t = self.arr_sum(self.Y[-1], 1, self.max_states, 1)
+        n_w = 0
+        for i in range(1, (self.max_states - self.n + 1)):
+            n_w += array[self.n + i] * i
+        for i in range(1, self.n + 1):
+            n_s += array[i] * i
+        #n_w = n_t - n_s
         A = self.lamda - self.nu * n_w
         Q = A / self.lamda
-        rej_prob = 1 - self.mu / self.lamda * n_t
+        rej_prob = 1 - self.mu / self.lamda * n_w
         print('Статистическая модель -', 'Интенсивность нагрузки системы:', rho)
         print('Статистическая модель -', 'Вероятность простоя системы:', p0)
         print('Статистическая модель -', 'Вероятность отсутствия очереди:', nq_prob)
@@ -165,7 +171,7 @@ class StatMod:
     def arr_sum(array, n_from, n_to, degree):
         # сумма элементов массива
         total = 0
-        for i in range(n_from, n_to):
+        for i in range(n_from, n_to+1):
             if (i != 0) or (degree != 0):
                 total += array[i] * (i ** degree)
             else:

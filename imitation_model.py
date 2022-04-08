@@ -352,6 +352,7 @@ class Imitation:
             'countReject': [],
             'timeRequests': [],
             'time': [],
+            'lamda': lamda
         }
 
         for _ in range(run_number):
@@ -413,8 +414,8 @@ class Imitation:
         aver_work = np.array([models['countInWork'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
         aver_system = np.array([models['countInSystem'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
         aver_queue = np.array([models['countInQueue'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
-        abs_traffic = np.array([((models['amountRequests'][i] - models['countReject'][i]) / models['amountRequests'][i]) for i in range(len(models['amountRequests']))]).mean()
-        rel_traffic = abs_traffic / intense
+        rel_traffic = np.array([((models['amountRequests'][i] - models['countReject'][i]) / models['amountRequests'][i]) for i in range(len(models['amountRequests']))]).mean()
+        abs_traffic = rel_traffic * models['lamda']
 
         print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
         print('Имитационная модель -', 'Вероятность простоя системы:', p_system_downtime)
