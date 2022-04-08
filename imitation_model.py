@@ -407,7 +407,7 @@ class Imitation:
     @staticmethod
     def print_metrics(models):
         """ Расчет и вывод характеристик модели """
-        intense = np.array([models['amountRequests'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean() 
+        #intense = np.array([models['amountRequests'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
         p_system_downtime = np.array([models['countDowntime'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
         p_empty = np.array([models['countNoQueue'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
         p_reject = np.array([models['countReject'][i] / models['amountRequests'][i] for i in range(len(models['amountRequests']))]).mean()
@@ -417,7 +417,7 @@ class Imitation:
         rel_traffic = np.array([((models['amountRequests'][i] - models['countReject'][i]) / models['amountRequests'][i]) for i in range(len(models['amountRequests']))]).mean()
         abs_traffic = rel_traffic * models['lamda']
 
-        print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
+        #print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
         print('Имитационная модель -', 'Вероятность простоя системы:', p_system_downtime)
         print('Имитационная модель -', 'Вероятность отсутствия очереди:', p_empty)
         print('Имитационная модель -', 'Среднее число заявок под обслуживанием:', aver_work)
