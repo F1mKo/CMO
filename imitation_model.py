@@ -30,15 +30,17 @@ class Imitation:
         self.t_coming_start = copy.deepcopy(self.t_coming)
 
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
-        self.time = self.recalcTService[0]
+        self.time = 0
         self.step = 0.01
 
-        self.count_systemDowntime = 1
-        self.count_noQueue = 1
+        self.count_systemDowntime = 0
+        self.count_noQueue = 0
         self.count_inWork = 0
         self.count_inSystem = 0
         self.count_inQueue = 0
         self.count_reject = 0
+
+        self.countsInWork = {'count': [], 'time': []}
 
         self.PrevCount_inWork = 0
         self.PrevCount_inSystem = 0
@@ -59,7 +61,7 @@ class Imitation:
         return True
 
     def set_initial_time_events(self):
-        times = self.t_coming + self.t_waiting
+        times = [0] + self.t_coming + self.t_waiting
         times.sort()
         return times
 
@@ -247,12 +249,17 @@ class Imitation:
         len_work = len(req_in_work)
 
         countSteps = 0
+        prev_time = self.time
         index = self.recalcTService.index(self.time)
         if index > 0:
             prev_time = self.recalcTService[index - 1]
             countSteps = int((self.time - prev_time) / self.step)
 
         self.requestsHistory[round(self.time, 2)] = len_queue + len_work
+
+        for i in range(countSteps):
+            self.countsInWork['count'].append(self.PrevCount_inWork)
+            self.countsInWork['time'].append(prev_time + i * self.step)
 
         self.count_inWork += self.PrevCount_inWork * countSteps
         self.PrevCount_inWork = len_work
@@ -294,6 +301,16 @@ class Imitation:
                 plt.barh(req, (self.takeServe[req]['TimeEnd'] - self.takeServe[req]['TimeStart']),
                          left=self.takeServe[req]['TimeStart'], color='b')
         plt.title("График обслуживания заявок СМО")
+        plt.show()
+
+    def print_plot_in_work(self):
+        fig, ax = plt.subplots()
+        plt.plot(self.countsInWork['time'], self.countsInWork['count'], linewidth=1,
+                 label='dynamics of applications in work')
+
+        plt.title("График частотных характеристик СМО")
+        plt.grid()
+        plt.legend()
         plt.show()
 
     def print_main_params(self):
@@ -401,23 +418,32 @@ class Imitation:
 
         frequency_characteristic = cls.get_frequency_char(states, count_char, intervals)
         cls.draw_frequency_characteristics(frequency_characteristic, intervals)
-        # last_request.print_plot_workflow()
+        last_request.print_plot_workflow()
         last_request.print_metrics(model_params)
+        last_request.print_plot_in_work()
 
     @staticmethod
     def print_metrics(models):
         """ Расчет и вывод характеристик модели """
-        #intense = np.array([models['amountRequests'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
-        p_system_downtime = np.array([models['countDowntime'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
-        p_empty = np.array([models['countNoQueue'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
-        p_reject = np.array([models['countReject'][i] / models['amountRequests'][i] for i in range(len(models['amountRequests']))]).mean()
-        aver_work = np.array([models['countInWork'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
-        aver_system = np.array([models['countInSystem'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
-        aver_queue = np.array([models['countInQueue'][i] / models['allTimeMoments'][i] for i in range(len(models['allTimeMoments']))]).mean()
-        rel_traffic = np.array([((models['amountRequests'][i] - models['countReject'][i]) / models['amountRequests'][i]) for i in range(len(models['amountRequests']))]).mean()
+        # intense = np.array([models['amountRequests'][i] / models['allTimeMoments'][i]
+        # for i in range(len(models['allTimeMoments']))]).mean()
+        p_system_downtime = np.array([models['countDowntime'][i] / models['allTimeMoments'][i]
+                                      for i in range(len(models['allTimeMoments']))]).mean()
+        p_empty = np.array([models['countNoQueue'][i] / models['allTimeMoments'][i]
+                            for i in range(len(models['allTimeMoments']))]).mean()
+        p_reject = np.array([models['countReject'][i] / models['amountRequests'][i]
+                             for i in range(len(models['amountRequests']))]).mean()
+        aver_work = np.array([models['countInWork'][i] / models['allTimeMoments'][i]
+                              for i in range(len(models['allTimeMoments']))]).mean()
+        aver_system = np.array([models['countInSystem'][i] / models['allTimeMoments'][i]
+                                for i in range(len(models['allTimeMoments']))]).mean()
+        aver_queue = np.array([models['countInQueue'][i] / models['allTimeMoments'][i]
+                               for i in range(len(models['allTimeMoments']))]).mean()
+        rel_traffic = np.array([((models['amountRequests'][i] - models['countReject'][i]) / models['amountRequests'][i])
+                                for i in range(len(models['amountRequests']))]).mean()
         abs_traffic = rel_traffic * models['lamda']
 
-        #print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
+        # print('Имитационная модель -', 'Интенсивность нагрузки системы: ?', intense)
         print('Имитационная модель -', 'Вероятность простоя системы:', p_system_downtime)
         print('Имитационная модель -', 'Вероятность отсутствия очереди:', p_empty)
         print('Имитационная модель -', 'Среднее число заявок под обслуживанием:', aver_work)

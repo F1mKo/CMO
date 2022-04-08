@@ -126,7 +126,7 @@ class StatMod:
     def calc_metrics(self):
         # расчет предельных вероятностей состояний системы:
         p0 = self.Y[-1][0]
-        #rho = self.lamda / (self.n * self.mu)
+        # rho = self.lamda / (self.n * self.mu)
         nq_prob = self.arr_sum(self.Y[-1], 0, self.n, 0)
         array = self.Y[-1]
         n_s = 0
@@ -136,11 +136,11 @@ class StatMod:
             n_w += array[self.n + i] * i
         for i in range(1, self.n + 1):
             n_s += array[i] * i
-        #n_w = n_t - n_s
+        # n_w = n_t - n_s
         rej_prob = self.nu * n_w / self.lamda
         Q = 1 - rej_prob
         A = Q * self.lamda
-        #print('Статистическая модель -', 'Интенсивность нагрузки системы:', rho)
+        # print('Статистическая модель -', 'Интенсивность нагрузки системы:', rho)
         print('Статистическая модель -', 'Вероятность простоя системы:', p0)
         print('Статистическая модель -', 'Вероятность отсутствия очереди:', nq_prob)
         print('Статистическая модель -', 'Среднее число заявок под обслуживанием:', n_s)
@@ -171,7 +171,7 @@ class StatMod:
     def arr_sum(array, n_from, n_to, degree):
         # сумма элементов массива
         total = 0
-        for i in range(n_from, n_to+1):
+        for i in range(n_from, n_to + 1):
             if (i != 0) or (degree != 0):
                 total += array[i] * (i ** degree)
             else:
