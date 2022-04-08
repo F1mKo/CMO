@@ -19,12 +19,12 @@ plt.rcParams.update(params)
 plt.style.use('seaborn-whitegrid')
 sns.set_style("white")
 
-samples = 3000
+samples = 2000
 lamda = 5  # интенсивность появления новых заявок
 mu = 1  # интенсивность обработки заявки
 nu = 3  # интенсивность терпеливости заявок в очереди
 n = 5  # число каналов обработки
-num_req = 200  # общее число поступивших заявок
+num_req = 100  # общее число поступивших заявок
 
 Imitation.run(samples, lamda, mu, nu, n, num_req)
 prob = StatMod(lamda, mu, nu, n, num_req, Imitation.max_state + 1, Imitation.tmax)

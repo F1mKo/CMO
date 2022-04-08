@@ -342,9 +342,19 @@ class Imitation:
     @staticmethod
     def draw_frequency_characteristics(chars, t_moments):
         fig, ax = plt.subplots()
+        l = 1
+        temp_moments = [0]
+        for i in range(len(t_moments) // l):
+            temp_moments.append(sum(t_moments[(l * i):(l * (i + 1))]) / l)
         for sys_state in chars:
             print('state ' + str(sys_state) + ': ' + str(chars[sys_state][-1]))
-            plt.plot(t_moments, chars[sys_state], linewidth=1, label='state ' + str(sys_state))
+            if sys_state == 0:
+                temp_chars = [1]
+            else:
+                temp_chars = [0]
+            for i in range(len(t_moments) // l):
+                temp_chars.append(sum(chars[sys_state][(l * i):(l * (i + 1))]) / l)
+            plt.plot(temp_moments, temp_chars, linewidth=1, label='state ' + str(sys_state))
 
         plt.title("График частотных характеристик СМО")
         plt.grid()
