@@ -133,7 +133,6 @@ class StatMod:
             n_w += array[self.n + i] * i
         for i in range(1, self.n + 1):
             n_s += array[i] * i
-
         rej_prob = self.nu * n_w / self.lamda
         Q = 1 - rej_prob
         A = Q * self.lamda
