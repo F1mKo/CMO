@@ -21,6 +21,7 @@ class Imitation:
         self.requestsHistory = {}  # сохранение тенденции наличия заявок в очереди
 
         self.busyChannel = [-1 for _ in range(self.n)]  # заняты ли в текущий момент каналы
+        self.step = 0.01
 
         self.t_coming = self.generate_arrive(1 / self.lamda)  # время прихода заявок
         self.t_waiting = self.generate_waiting(1 / self.nu)  # время ухода заявок из очереди без обслуживания
@@ -31,7 +32,6 @@ class Imitation:
 
         self.recalcTService = self.set_initial_time_events()  # временные моменты событий
         self.time = 0
-        self.step = 0.01
 
         self.count_systemDowntime = 0
         self.count_noQueue = 0
@@ -61,39 +61,40 @@ class Imitation:
         return True
 
     def set_initial_time_events(self):
-        times = [0] + self.t_coming + self.t_waiting
+        times = list(dict.fromkeys([0.] + self.t_coming + self.t_waiting))
         times.sort()
         return times
 
     def generate_arrive(self, lamda):
-        """ Генерирует кумулятивный список из распределения Пуассона для времени прибытия заявок """
+        """ Генерирует кумулятивный список из экспоненциального распределения для времени прибытия заявок """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
-        result = [distribution[0]]
+        result = [round(distribution[0], 2)]
 
         for index in range(1, distribution.size):
-            result.append(result[index - 1] + distribution[index])
+            result.append(round(result[index - 1] + distribution[index], 2))
 
         return result
 
     def generate_waiting(self, lamda):
-        """ Генерирует некумулятивный список из распределения Пуассона для времени ухода заявок из очереди """
+        """ Генерирует некумулятивный список из экспоненциального распределения для времени ухода заявок из очереди """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
 
         for index in range(0, distribution.size):
-            result.append(self.t_coming[index] + distribution[index])
+            result.append(round(self.t_coming[index] + distribution[index], 2))
 
         return result
 
     def generate_service(self, lamda):
-        """ Генерирует некумулятивный список из распределения Пуассона для времени обслуживания """
+        """ Генерирует некумулятивный список из экспоненциального распределения для времени обслуживания """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
         for index in range(0, distribution.size):
-            if distribution[index] == 0:
-                result.append(0.1)
+            val = round(distribution[index], 2)
+            if val == 0.:
+                result.append(self.step)
             else:
-                result.append(distribution[index])
+                result.append(val)
         return result
 
     def request_service_end(self):
@@ -179,6 +180,7 @@ class Imitation:
                                     * len(self.takeServe[request]['channels']) / len(channels))
             self.takeServe[request]['channels'] = channels
 
+        time_end = round(time_end, 2)
         self.t_ending[request] = time_end
         self.recalcTService.append(time_end)
         self.recalcTService = list(dict.fromkeys(self.recalcTService))
