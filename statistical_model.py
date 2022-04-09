@@ -17,7 +17,7 @@ class StatMod:
         self.st_names = [name for name in range(self.max_states)]
         self.ps = [[] for _ in range(self.max_states)]
         self.Y = np.array(0)
-        self.tau = 0.01  # шаг интегрирования
+        self.tau = 0.01 / np.log(num_req)  # шаг интегрирования
 
     def f(self, p):
         """ Функция правых частей системы ОДУ """

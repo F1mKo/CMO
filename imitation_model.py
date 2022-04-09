@@ -66,7 +66,7 @@ class Imitation:
         return times
 
     def generate_arrive(self, lamda):
-        """ Генерирует кумулятивный список из распределения Пуассона для времени прибытия заявок """
+        """ Генерирует кумулятивный список из экспоненциального распределения для времени прибытия заявок """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = [distribution[0]]
 
@@ -76,7 +76,7 @@ class Imitation:
         return result
 
     def generate_waiting(self, lamda):
-        """ Генерирует некумулятивный список из распределения Пуассона для времени ухода заявок из очереди """
+        """ Генерирует некумулятивный список из экспоненциального распределения для времени ухода заявок из очереди """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
 
@@ -86,7 +86,7 @@ class Imitation:
         return result
 
     def generate_service(self, lamda):
-        """ Генерирует некумулятивный список из распределения Пуассона для времени обслуживания """
+        """ Генерирует некумулятивный список из экспоненциального распределения для времени обслуживания """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
         for index in range(0, distribution.size):
@@ -188,7 +188,7 @@ class Imitation:
         """ Событие ухода заявки из очереди без обработки """
         index = 0
         for request in self.queue:
-            if self.t_waiting[request] == self.time:
+            if self.t_waiting[request] <= self.time:
                 self.count_reject += 1
                 self.gone[request] = 1
                 del self.queue[index]
@@ -249,11 +249,13 @@ class Imitation:
         len_work = len(req_in_work)
 
         countSteps = 0
+        gap_len = 0
         prev_time = self.time
         index = self.recalcTService.index(self.time)
         if index > 0:
             prev_time = self.recalcTService[index - 1]
-            countSteps = int((self.time - prev_time) / self.step)
+            gap_len = self.time - prev_time
+            countSteps = round(gap_len / self.step)
 
         for i in range(countSteps):
             self.countsInWork['count'].append(self.PrevCount_inWork)
@@ -261,17 +263,17 @@ class Imitation:
 
             self.requestsHistory[round(prev_time + i * self.step, 2)] = self.PrevCount_inSystem
 
-        self.count_inWork += self.PrevCount_inWork * countSteps
+        self.count_inWork += self.PrevCount_inWork * gap_len
         self.PrevCount_inWork = len_work
 
-        self.count_inSystem += self.PrevCount_inSystem * countSteps
-        self.count_inQueue += self.PrevCount_inQueue * countSteps
+        self.count_inSystem += self.PrevCount_inSystem * gap_len
+        self.count_inQueue += self.PrevCount_inQueue * gap_len
 
         if self.PrevCount_inQueue == 0:
-            self.count_noQueue += countSteps
+            self.count_noQueue += gap_len
 
         if self.PrevCount_inSystem == 0:
-            self.count_systemDowntime += countSteps
+            self.count_systemDowntime += gap_len
 
         self.PrevCount_inQueue = len_queue
         self.PrevCount_inSystem = len_queue + len_work
@@ -305,12 +307,10 @@ class Imitation:
 
     def print_plot_in_work(self):
         fig, ax = plt.subplots()
-        plt.plot(self.countsInWork['time'], self.countsInWork['count'], linewidth=1,
-                 label='dynamics of applications in work')
+        plt.plot(self.countsInWork['time'], self.countsInWork['count'], linewidth=1)
 
-        plt.title("График частотных характеристик СМО")
+        plt.title("График динамики числа заявок в работе")
         plt.grid()
-        plt.legend()
         plt.show()
 
     def print_main_params(self):
@@ -432,20 +432,22 @@ class Imitation:
         last_request.print_plot_workflow()
         last_request.print_metrics(model_params)
         last_request.print_plot_in_work()
+        last_request.print_main_params()
 
     @staticmethod
     def print_metrics(models):
         """ Расчет и вывод характеристик модели """
-        times = models['allTimeMoments']
+        # times = models['allTimeMoments']
         times_len = len(models['allTimeMoments'])
+        real_times = models['time']
         amounts = models['amountRequests']
 
-        p_system_downtime = np.array([models['countDowntime'][i] / times[i] for i in range(times_len)]).mean()
-        p_empty = np.array([models['countNoQueue'][i] / times[i] for i in range(times_len)]).mean()
+        p_system_downtime = np.array([models['countDowntime'][i] / real_times[i] for i in range(times_len)]).mean()
+        p_empty = np.array([models['countNoQueue'][i] / real_times[i] for i in range(times_len)]).mean()
         p_reject = np.array([models['countReject'][i] / amounts[i] for i in range(len(amounts))]).mean()
-        aver_work = np.array([models['countInWork'][i] / times[i] for i in range(times_len)]).mean()
-        aver_system = np.array([models['countInSystem'][i] / times[i] for i in range(times_len)]).mean()
-        aver_queue = np.array([models['countInQueue'][i] / times[i] for i in range(times_len)]).mean()
+        aver_work = np.array([models['countInWork'][i] / real_times[i] for i in range(times_len)]).mean()
+        aver_system = np.array([models['countInSystem'][i] / real_times[i] for i in range(times_len)]).mean()
+        aver_queue = np.array([models['countInQueue'][i] / real_times[i] for i in range(times_len)]).mean()
         rel_traffic = np.array([((amounts[i] - models['countReject'][i]) / amounts[i])
                                 for i in range(len(amounts))]).mean()
         abs_traffic = rel_traffic * models['lamda']
