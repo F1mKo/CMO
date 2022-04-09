@@ -61,12 +61,12 @@ class Imitation:
         return True
 
     def set_initial_time_events(self):
-        times = [0] + self.t_coming + self.t_waiting
+        times = list(dict.fromkeys([0] + self.t_coming + self.t_waiting))
         times.sort()
         return times
 
     def generate_arrive(self, lamda):
-        """ Генерирует кумулятивный список из распределения Пуассона для времени прибытия заявок """
+        """ Генерирует кумулятивный список из экспоненциального распределения для времени прибытия заявок """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = [distribution[0]]
 
@@ -76,7 +76,7 @@ class Imitation:
         return result
 
     def generate_waiting(self, lamda):
-        """ Генерирует некумулятивный список из распределения Пуассона для времени ухода заявок из очереди """
+        """ Генерирует некумулятивный список из экспоненциального распределения для времени ухода заявок из очереди """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
 
@@ -86,7 +86,7 @@ class Imitation:
         return result
 
     def generate_service(self, lamda):
-        """ Генерирует некумулятивный список из распределения Пуассона для времени обслуживания """
+        """ Генерирует некумулятивный список из экспоненциального распределения для времени обслуживания """
         distribution = np.random.exponential(scale=lamda, size=self.num_req)
         result = []
         for index in range(0, distribution.size):
@@ -305,12 +305,10 @@ class Imitation:
 
     def print_plot_in_work(self):
         fig, ax = plt.subplots()
-        plt.plot(self.countsInWork['time'], self.countsInWork['count'], linewidth=1,
-                 label='dynamics of applications in work')
+        plt.plot(self.countsInWork['time'], self.countsInWork['count'], linewidth=1)
 
-        plt.title("График частотных характеристик СМО")
+        plt.title("График динамики заявок в работе")
         plt.grid()
-        plt.legend()
         plt.show()
 
     def print_main_params(self):
@@ -432,6 +430,7 @@ class Imitation:
         last_request.print_plot_workflow()
         last_request.print_metrics(model_params)
         last_request.print_plot_in_work()
+        last_request.print_main_params()
 
     @staticmethod
     def print_metrics(models):
